@@ -1,88 +1,130 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import { AuthModal } from '@/components/auth/AuthModal'
 import {
   BookOpen, FileText, Star, Users, GraduationCap, Trophy,
-  CheckCircle, ArrowRight, Phone, Mail, MapPin,
-  Search,
+  CheckCircle, ArrowRight, Phone, Mail, MapPin, Search,
   BookMarked, PenLine, Calendar, Newspaper, Clock, Award,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react'
 
+/* ── Colour tokens ───────────────────────────────────────── */
+const TEAL   = '#1D6660'
+const ORANGE = '#F97316'
+
+/* ── Inline social SVGs ──────────────────────────────────── */
 const SocialIcons = {
   Facebook: () => (
-    <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
       <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
     </svg>
   ),
   Twitter: () => (
-    <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
       <path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"/>
     </svg>
   ),
   Instagram: () => (
-    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2">
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
       <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
       <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
       <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
     </svg>
   ),
   Youtube: () => (
-    <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+    <svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor">
       <path d="M22.54 6.42a2.78 2.78 0 0 0-1.95-1.96C18.88 4 12 4 12 4s-6.88 0-8.59.46a2.78 2.78 0 0 0-1.95 1.96A29 29 0 0 0 1 12a29 29 0 0 0 .46 5.58A2.78 2.78 0 0 0 3.41 19.6C5.12 20 12 20 12 20s6.88 0 8.59-.46a2.78 2.78 0 0 0 1.95-1.95A29 29 0 0 0 23 12a29 29 0 0 0-.46-5.58z"/>
       <polygon points="9.75 15.02 15.5 12 9.75 8.98 9.75 15.02" fill="white"/>
     </svg>
   ),
 }
 
-/* ── Exact colour tokens from the reference ─────────────── */
-const TEAL   = '#1D6660'  // top bar, stats banner, footer
-const ORANGE = '#F97316'  // all orange accents, buttons, labels
-const ORANGE_LIGHT = '#FFF7ED'
+/* ── Scroll-reveal hook ──────────────────────────────────── */
+function useInView(threshold = 0.12) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [inView, setInView] = useState(false)
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const obs = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setInView(true); obs.disconnect() } },
+      { threshold }
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [threshold])
+  return { ref, inView }
+}
 
-/* ── Data ────────────────────────────────────────────────── */
+/* ── Count-up hook ───────────────────────────────────────── */
+function useCountUp(end: number, active: boolean, duration = 1800) {
+  const [val, setVal] = useState(0)
+  useEffect(() => {
+    if (!active) return
+    const startTs = performance.now()
+    let raf: number
+    const tick = (now: number) => {
+      const p = Math.min((now - startTs) / duration, 1)
+      setVal(Math.round(p * end))
+      if (p < 1) raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [end, active, duration])
+  return val
+}
+
+/* ── Hero slides data ────────────────────────────────────── */
+const SLIDES = [
+  {
+    badge: '✦ WELCOME TO CSSBUDDY.PK!',
+    line1: 'Start Your Beautiful',
+    line2pre: 'And ', highlight: 'Bright', line2post: ' Future',
+    sub: "Pakistan's most comprehensive CSS/PMS preparation platform. Practice MCQs, browse past papers, find study partners, and get expert essay feedback — all in one place.",
+    img: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?auto=format&fit=crop&w=960&q=80',
+    alt: 'Open books in a sunlit library',
+  },
+  {
+    badge: '✦ MASTER EVERY CSS SUBJECT',
+    line1: 'Study Smart &',
+    line2pre: '', highlight: 'Ace', line2post: ' the Exam',
+    sub: '5000+ subject-wise MCQs, 8 years of past papers, and expert essay feedback to help you clear CSS/PMS with full confidence.',
+    img: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&w=960&q=80',
+    alt: 'Student studying at a desk with books',
+  },
+  {
+    badge: '✦ 48 SUBJECTS · 42 OPTIONALS',
+    line1: 'Your Complete',
+    line2pre: '', highlight: 'CSS/PMS', line2post: ' Platform',
+    sub: 'Join thousands of aspirants preparing smarter. Study plans, essay writing, book marketplace, and study partner matching — all free.',
+    img: 'https://images.unsplash.com/photo-1456735190827-d1262f71b8a3?auto=format&fit=crop&w=960&q=80',
+    alt: 'Pen and notebooks on a study desk',
+  },
+]
+
+/* ── Feature cards ───────────────────────────────────────── */
 const FEATURES = [
-  { num: '01', icon: FileText,    title: 'Past Papers',      desc: '2016–2023 official CSS/PMS papers organised by subject, viewable directly in the app.' },
-  { num: '02', icon: BookOpen,    title: 'Expert MCQs',      desc: 'Thousands of subject-wise MCQs with instant scoring, answer keys, and PDF export.' },
-  { num: '03', icon: Users,       title: 'Study Partner',    desc: 'Match with aspirants preparing the same optional subjects and study together.' },
-  { num: '04', icon: Star,        title: 'Premium Notes',    desc: 'Screening Test and MPT preparation notes reviewed by top CSS qualifiers.' },
+  { num: '01', icon: FileText,  title: 'Past Papers',   desc: '2016–2023 official CSS/PMS papers organised by subject, viewable directly in the app.' },
+  { num: '02', icon: BookOpen,  title: 'Expert MCQs',   desc: 'Thousands of subject-wise MCQs with instant scoring, answer keys, and PDF export.' },
+  { num: '03', icon: Users,     title: 'Study Partner', desc: 'Match with aspirants preparing the same optional subjects and study together.' },
+  { num: '04', icon: Star,      title: 'Premium Notes', desc: 'Screening Test and MPT preparation notes reviewed by top CSS qualifiers.' },
 ]
 
+/* ── Stats ───────────────────────────────────────────────── */
 const STATS = [
-  { value: '5000+', label: 'MCQ Questions',    icon: BookOpen   },
-  { value: '10K+',  label: 'Active Users',     icon: Users      },
-  { value: '11',    label: 'Study Modules',    icon: GraduationCap },
-  { value: '98%',   label: 'Satisfaction Rate', icon: Trophy    },
+  { end: 5000,  suffix: '+', label: 'MCQ Questions',    icon: BookOpen      },
+  { end: 10000, suffix: '+', label: 'Active Users',     icon: Users         },
+  { end: 11,    suffix: '',  label: 'Study Modules',    icon: GraduationCap },
+  { end: 98,    suffix: '%', label: 'Satisfaction Rate',icon: Trophy        },
 ]
 
-const MODULES = [
-  {
-    title: 'MCQ Practice & Quiz',
-    tag: 'Practice',
-    lessons: 5000,
-    img: null,
-    grad: 'linear-gradient(135deg,#1D6660,#2D9E95)',
-    icon: BookOpen,
-    route: '/practice',
-  },
-  {
-    title: 'Past Papers 2016–2023',
-    tag: 'Resources',
-    lessons: 150,
-    img: null,
-    grad: 'linear-gradient(135deg,#0369A1,#38BDF8)',
-    icon: FileText,
-    route: '/past-papers',
-  },
-  {
-    title: 'Study Partner Match',
-    tag: 'Community',
-    lessons: null,
-    img: null,
-    grad: 'linear-gradient(135deg,#9333EA,#C084FC)',
-    icon: Users,
-    route: '/partner',
-  },
+/* ── About images ────────────────────────────────────────── */
+const ABOUT_IMGS = [
+  { src: 'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=500&q=80', label: 'MCQ Practice'   },
+  { src: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?auto=format&fit=crop&w=500&q=80', label: 'Past Papers'    },
+  { src: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=500&q=80', label: 'Study Groups'  },
+  { src: 'https://images.unsplash.com/photo-1517842645767-c639042777db?auto=format&fit=crop&w=500&q=80', label: 'Premium Notes' },
 ]
 
 /* ── Helpers ─────────────────────────────────────────────── */
@@ -96,6 +138,25 @@ function Stars5() {
   )
 }
 
+function StatItem({ end, suffix, label, icon: Icon, active }: {
+  end: number; suffix: string; label: string; icon: React.FC<{ size: number }>; active: boolean
+}) {
+  const count = useCountUp(end, active)
+  const display = end >= 1000 ? `${(count / 1000).toFixed(count >= end ? 0 : 0)}K` : String(count)
+  return (
+    <div className="text-center text-white">
+      <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white/20"
+        style={{ background: ORANGE }}>
+        <Icon size={28} />
+      </div>
+      <p className="text-4xl font-black mb-1">
+        {end >= 1000 ? display : count}{suffix}
+      </p>
+      <p className="text-sm font-semibold opacity-80">+ {label}</p>
+    </div>
+  )
+}
+
 /* ══════════════════════════════════════════════════════════
    TOP INFO BAR
 ══════════════════════════════════════════════════════════ */
@@ -103,7 +164,6 @@ function TopBar() {
   return (
     <div style={{ background: TEAL }} className="text-white text-xs hidden lg:block">
       <div className="max-w-7xl mx-auto px-6 h-9 flex items-center justify-between">
-        {/* Left — social icons */}
         <div className="flex items-center gap-4">
           <span className="font-semibold opacity-80">Follow Us</span>
           {[SocialIcons.Facebook, SocialIcons.Twitter, SocialIcons.Instagram, SocialIcons.Youtube].map((Icon, i) => (
@@ -112,8 +172,6 @@ function TopBar() {
             </a>
           ))}
         </div>
-
-        {/* Right — contact info */}
         <div className="flex items-center gap-6">
           <span className="flex items-center gap-1.5 opacity-80"><MapPin size={11} /> Karachi, Pakistan</span>
           <span className="flex items-center gap-1.5 opacity-80"><Mail size={11} /> cssbuddy.pk@gmail.com</span>
@@ -127,30 +185,29 @@ function TopBar() {
 }
 
 /* ══════════════════════════════════════════════════════════
-   NAVBAR
+   NAVBAR  — clean CssBuddy.pk branding, no ✦eduka
 ══════════════════════════════════════════════════════════ */
 function Navbar({ onOpen }: { onOpen: () => void }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const user = useAuthStore((s) => s.user)
   const navigate = useNavigate()
-
   const NAV = ['Home', 'Modules', 'Subjects', 'Resources', 'Study Plan', 'Blog', 'Contact']
 
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center h-[70px] gap-6">
+
         {/* Logo */}
         <a href="/" className="flex items-center gap-2.5 shrink-0">
-          <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: TEAL }}>
-            <GraduationCap size={20} className="text-white" />
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-sm"
+            style={{ background: `linear-gradient(135deg, ${TEAL} 0%, #2D9E95 100%)` }}>
+            <GraduationCap size={22} className="text-white" />
           </div>
           <div className="leading-tight">
-            <span className="font-black text-xl tracking-tight" style={{ color: TEAL }}>✦eduka</span>
-            <span className="font-black text-xl tracking-tight text-gray-800">&nbsp;</span>
-          </div>
-          <div className="hidden sm:block border-l border-gray-200 pl-3">
-            <p className="font-black text-base text-gray-800 leading-tight">CssBuddy<span style={{ color: ORANGE }}>.pk</span></p>
-            <p className="text-[10px] text-gray-400">CSS/PMS Prep Platform</p>
+            <p className="font-black text-xl text-gray-900 leading-none tracking-tight">
+              CssBuddy<span style={{ color: ORANGE }}>.pk</span>
+            </p>
+            <p className="text-[10px] text-gray-400 font-medium tracking-wide">CSS/PMS Prep Platform</p>
           </div>
         </a>
 
@@ -158,46 +215,51 @@ function Navbar({ onOpen }: { onOpen: () => void }) {
         <nav className="hidden lg:flex items-center gap-5 flex-1 justify-center">
           {NAV.map((l, i) => (
             <a key={l} href={`#${l.toLowerCase().replace(' ', '-')}`}
-              className={`text-sm font-semibold transition-colors flex items-center gap-0.5 ${i === 0 ? 'text-gray-900' : 'text-gray-600 hover:text-gray-900'}`}>
-              {l} {i > 0 && i < 5 && <span className="text-gray-400 text-xs">▾</span>}
+              className={`text-sm font-semibold transition-colors flex items-center gap-0.5 ${
+                i === 0 ? 'text-gray-900' : 'text-gray-600 hover:text-gray-900'
+              }`}>
+              {l}
+              {i > 0 && i < 5 && <span className="text-gray-400 text-[10px] ml-0.5">▾</span>}
             </a>
           ))}
         </nav>
 
         {/* Actions */}
         <div className="hidden lg:flex items-center gap-3 ml-auto">
-          <button className="text-gray-600 hover:text-gray-900 p-1"><Search size={18} /></button>
+          <button className="text-gray-500 hover:text-gray-900 p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+            <Search size={18} />
+          </button>
           {user ? (
             <button onClick={() => navigate('/dashboard')}
-              className="px-5 py-2.5 rounded text-white text-sm font-bold hover:opacity-90 transition-opacity"
+              className="px-5 py-2.5 rounded-lg text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-sm"
               style={{ background: ORANGE }}>
               Dashboard →
             </button>
           ) : (
             <button onClick={onOpen}
-              className="px-5 py-2.5 rounded text-white text-sm font-bold hover:opacity-90 transition-opacity flex items-center gap-1.5"
+              className="px-5 py-2.5 rounded-lg text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-sm"
               style={{ background: ORANGE }}>
-              <span className="text-base leading-none">✦</span> APPLY NOW
+              APPLY NOW
             </button>
           )}
         </div>
 
         {/* Mobile toggle */}
-        <button onClick={() => setMobileOpen((o) => !o)} className="lg:hidden ml-auto text-gray-600 p-1">
+        <button onClick={() => setMobileOpen(o => !o)} className="lg:hidden ml-auto text-gray-600 p-1.5">
           {mobileOpen
-            ? <span className="font-bold text-xl">✕</span>
+            ? <span className="font-bold text-xl leading-none">✕</span>
             : <span className="text-2xl leading-none">☰</span>}
         </button>
       </div>
 
       {mobileOpen && (
         <div className="lg:hidden bg-white border-t px-4 py-4 space-y-3">
-          {NAV.map((l) => (
+          {NAV.map(l => (
             <a key={l} href={`#${l.toLowerCase()}`} onClick={() => setMobileOpen(false)}
-              className="block text-sm font-semibold text-gray-700 py-1 border-b border-gray-100">{l}</a>
+              className="block text-sm font-semibold text-gray-700 py-1.5 border-b border-gray-100">{l}</a>
           ))}
           <button onClick={() => { onOpen(); setMobileOpen(false) }}
-            className="w-full mt-2 py-3 rounded text-white font-bold" style={{ background: ORANGE }}>
+            className="w-full mt-2 py-3 rounded-lg text-white font-bold text-sm" style={{ background: ORANGE }}>
             APPLY NOW
           </button>
         </div>
@@ -207,83 +269,136 @@ function Navbar({ onOpen }: { onOpen: () => void }) {
 }
 
 /* ══════════════════════════════════════════════════════════
-   HERO
+   HERO — image slider (3 slides, auto-play, crossfade)
 ══════════════════════════════════════════════════════════ */
 function Hero({ onOpen }: { onOpen: () => void }) {
   const user = useAuthStore((s) => s.user)
   const navigate = useNavigate()
+  const [current, setCurrent] = useState(0)
+  const [textVisible, setTextVisible] = useState(true)
+
+  const goTo = (idx: number) => {
+    setTextVisible(false)
+    setTimeout(() => { setCurrent(idx); setTextVisible(true) }, 400)
+  }
+  const prev = () => goTo((current - 1 + SLIDES.length) % SLIDES.length)
+  const next = () => goTo((current + 1) % SLIDES.length)
+
+  /* auto-play */
+  useEffect(() => {
+    const t = setInterval(() => {
+      setCurrent(c => {
+        const next = (c + 1) % SLIDES.length
+        setTextVisible(false)
+        setTimeout(() => setTextVisible(true), 400)
+        return next
+      })
+    }, 5500)
+    return () => clearInterval(t)
+  }, [])
+
+  const slide = SLIDES[current]
 
   return (
-    <section className="relative overflow-hidden" style={{ minHeight: 520 }}>
-      {/* Dark overlay background */}
-      <div className="absolute inset-0 z-0"
-        style={{ background: 'linear-gradient(105deg,rgba(10,30,30,0.88) 45%,rgba(29,102,96,0.55) 100%)' }} />
-      {/* Background teal pattern */}
-      <div className="absolute inset-0 z-0" style={{ background: `${TEAL}`, opacity: 0.25 }} />
-      {/* Students bg illustration */}
-      <div className="absolute right-0 top-0 bottom-0 w-[55%] z-0 overflow-hidden hidden lg:block">
-        <div style={{ background: 'linear-gradient(135deg,#2D9E95 0%,#1D6660 50%,#0D3A36 100%)', opacity: 0.7 }} className="absolute inset-0" />
-        {/* Decorative students silhouette using CSS */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="flex gap-4 items-end opacity-40">
-            {[80, 110, 95, 105, 85].map((h, i) => (
-              <div key={i} className="w-14 rounded-t-full bg-white/30" style={{ height: h }} />
+    <section className="relative overflow-hidden" style={{ minHeight: 560 }}>
+
+      {/* ── Crossfading background images ── */}
+      {SLIDES.map((s, i) => (
+        <div key={i} className="absolute inset-0 transition-opacity duration-700"
+          style={{
+            backgroundImage: `url(${s.img})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            opacity: i === current ? 1 : 0,
+          }} />
+      ))}
+
+      {/* Dark gradient overlay — text side */}
+      <div className="absolute inset-0 z-[1]"
+        style={{ background: 'linear-gradient(100deg, rgba(8,25,24,0.93) 0%, rgba(10,38,34,0.88) 48%, rgba(29,102,96,0.35) 100%)' }} />
+
+      {/* Frosted image panel — right side */}
+      <div className="absolute right-0 top-0 bottom-0 w-[44%] z-[2] hidden lg:block overflow-hidden">
+        {SLIDES.map((s, i) => (
+          <img key={i} src={s.img} alt={s.alt}
+            className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700"
+            style={{ opacity: i === current ? 1 : 0 }} />
+        ))}
+        {/* left-side fade so text doesn't clash with image */}
+        <div className="absolute inset-0"
+          style={{ background: 'linear-gradient(to right, rgba(8,25,24,0.85) 0%, rgba(8,25,24,0.3) 30%, transparent 70%)' }} />
+      </div>
+
+      {/* Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 relative z-10">
+
+        {/* Arrows */}
+        <button onClick={prev}
+          className="hidden lg:flex absolute left-2 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full items-center justify-center text-white border border-white/25 bg-white/10 hover:bg-white/20 transition-all">
+          <ChevronLeft size={22} />
+        </button>
+        <button onClick={next}
+          className="hidden lg:flex absolute right-[calc(44%+8px)] top-1/2 -translate-y-1/2 w-11 h-11 rounded-full items-center justify-center text-white border border-white/25 bg-white/10 hover:bg-white/20 transition-all">
+          <ChevronRight size={22} />
+        </button>
+
+        {/* Slide text — fade + lift transition */}
+        <div className="max-w-xl transition-all duration-400"
+          style={{ opacity: textVisible ? 1 : 0, transform: textVisible ? 'translateY(0)' : 'translateY(10px)' }}>
+
+          <span className="inline-block text-xs font-bold uppercase tracking-widest mb-5 px-3 py-1 rounded-full border border-orange-400/40"
+            style={{ color: ORANGE }}>
+            {slide.badge}
+          </span>
+
+          <h1 className="text-4xl sm:text-5xl lg:text-[52px] font-black text-white leading-[1.08] mb-6">
+            {slide.line1}<br />
+            {slide.line2pre}
+            <span style={{ color: ORANGE }}>{slide.highlight}</span>
+            {slide.line2post}
+          </h1>
+
+          <p className="text-gray-300 text-sm sm:text-base leading-relaxed mb-9 max-w-md">
+            {slide.sub}
+          </p>
+
+          <div className="flex flex-wrap gap-4">
+            <button onClick={() => user ? navigate('/dashboard') : onOpen()}
+              className="flex items-center gap-2 px-6 py-3 rounded-lg text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-lg"
+              style={{ background: ORANGE }}>
+              GET STARTED <ArrowRight size={15} />
+            </button>
+            <button onClick={() => document.getElementById('modules')?.scrollIntoView({ behavior: 'smooth' })}
+              className="flex items-center gap-2 px-6 py-3 rounded-lg border-2 border-white/35 text-white text-sm font-bold hover:bg-white/10 transition-colors">
+              LEARN MORE <ArrowRight size={15} />
+            </button>
+          </div>
+
+          {/* Slide dots */}
+          <div className="flex gap-2 mt-10">
+            {SLIDES.map((_, i) => (
+              <button key={i} onClick={() => goTo(i)}
+                className="h-2 rounded-full transition-all duration-300"
+                style={{ width: i === current ? 28 : 8, background: i === current ? ORANGE : 'rgba(255,255,255,0.35)' }} />
             ))}
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 relative z-10">
-        {/* Prev / Next arrows */}
-        <button className="hidden lg:flex absolute left-0 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/10 border border-white/20 rounded-full items-center justify-center text-white hover:bg-white/20">‹</button>
-        <button className="hidden lg:flex absolute right-0 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/10 border border-white/20 rounded-full items-center justify-center text-white hover:bg-white/20">›</button>
-
-        <div className="max-w-xl">
-          {/* Badge */}
-          <div className="flex items-center gap-2 mb-5">
-            <span className="text-sm font-bold uppercase tracking-widest" style={{ color: ORANGE }}>
-              ✦ WELCOME TO CSSBUDDY.PK!
-            </span>
-          </div>
-
-          <h1 className="text-4xl sm:text-5xl lg:text-[54px] font-black text-white leading-[1.1] mb-6">
-            Start Your <br className="hidden sm:block" />
-            Beautiful<br />
-            And <span style={{ color: ORANGE }}>Bright</span> Future
-          </h1>
-
-          <p className="text-gray-300 text-sm sm:text-base leading-relaxed mb-8 max-w-md">
-            Pakistan's most comprehensive CSS/PMS preparation platform. Practice MCQs, browse past papers, find study partners, and get expert essay feedback — all in one place.
-          </p>
-
-          <div className="flex flex-wrap gap-4">
-            <button
-              onClick={() => user ? navigate('/dashboard') : onOpen()}
-              className="flex items-center gap-2 px-6 py-3 rounded text-white text-sm font-bold hover:opacity-90 transition-opacity"
-              style={{ background: ORANGE }}>
-              ABOUT MORE <ArrowRight size={15} />
-            </button>
-            <button
-              onClick={() => document.getElementById('modules')?.scrollIntoView({ behavior: 'smooth' })}
-              className="flex items-center gap-2 px-6 py-3 rounded border-2 border-white/40 text-white text-sm font-bold hover:bg-white/10 transition-colors">
-              LEARN MORE <ArrowRight size={15} />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Floating feature cards (overlap) ── */}
-      <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-6 pb-0">
+      {/* ── Floating feature cards ── */}
+      <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 pb-0">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {FEATURES.map(({ num, icon: Icon, title, desc }) => (
-            <div key={title} className="bg-white rounded-lg shadow-lg p-5 border border-gray-100 hover:shadow-xl transition-shadow">
-              {/* Icon circle + number */}
+          {FEATURES.map(({ num, icon: Icon, title, desc }, idx) => (
+            <div key={title}
+              className="bg-white rounded-xl shadow-xl p-5 border border-gray-100 hover:shadow-2xl hover:-translate-y-1 transition-all duration-200"
+              style={{ transitionDelay: `${idx * 60}ms` }}>
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-12 h-12 rounded-full flex items-center justify-center border-2 shrink-0"
-                  style={{ borderColor: TEAL }}>
-                  <Icon size={20} style={{ color: TEAL }} />
+                {/* Gradient icon badge */}
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white shrink-0 shadow-sm"
+                  style={{ background: `linear-gradient(135deg, ${TEAL} 0%, #2D9E95 100%)` }}>
+                  <Icon size={20} />
                 </div>
-                <span className="text-3xl font-black text-gray-100">{num}</span>
+                <span className="text-3xl font-black" style={{ color: '#E5E7EB' }}>{num}</span>
               </div>
               <h3 className="font-bold text-gray-900 text-sm mb-1.5">{title}</h3>
               <p className="text-gray-500 text-xs leading-relaxed">{desc}</p>
@@ -296,36 +411,38 @@ function Hero({ onOpen }: { onOpen: () => void }) {
 }
 
 /* ══════════════════════════════════════════════════════════
-   ABOUT SECTION
+   ABOUT — real images, scroll-reveal animation
 ══════════════════════════════════════════════════════════ */
 function About({ onOpen }: { onOpen: () => void }) {
   const user = useAuthStore((s) => s.user)
   const navigate = useNavigate()
+  const { ref, inView } = useInView()
 
   return (
-    <section id="resources" className="bg-white py-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section id="resources" className="bg-white py-24">
+      <div ref={ref} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
 
-          {/* Left — image collage */}
-          <div className="relative">
+          {/* Left — real image collage */}
+          <div className={`relative transition-all duration-700 ${inView ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10'}`}>
             <div className="grid grid-cols-2 gap-3">
-              {[
-                { emoji: '📝', label: 'MCQ Practice',  bg: '#EFF6FF' },
-                { emoji: '📄', label: 'Past Papers',   bg: '#F0FDF4' },
-                { emoji: '👥', label: 'Study Groups',  bg: '#FFF7ED' },
-                { emoji: '⭐', label: 'Premium Notes', bg: '#F5F3FF' },
-              ].map(({ emoji, label, bg }) => (
-                <div key={label} className="rounded-lg aspect-[4/3] flex flex-col items-center justify-center gap-2 border border-gray-100 shadow-sm"
-                  style={{ background: bg }}>
-                  <span className="text-4xl">{emoji}</span>
-                  <p className="text-xs font-bold text-gray-700">{label}</p>
+              {ABOUT_IMGS.map(({ src, label }) => (
+                <div key={label} className="rounded-xl overflow-hidden aspect-[4/3] relative shadow-md group">
+                  <img src={src} alt={label}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  {/* label overlay */}
+                  <div className="absolute inset-0 flex items-end"
+                    style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 60%)' }}>
+                    <p className="text-white text-xs font-bold px-3 py-2">{label}</p>
+                  </div>
                 </div>
               ))}
             </div>
+
             {/* Floating badge */}
-            <div className="absolute bottom-[-20px] left-6 rounded-xl shadow-xl px-5 py-4 flex items-center gap-3 border border-gray-100 bg-white">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center text-white shrink-0" style={{ background: ORANGE }}>
+            <div className="absolute -bottom-5 left-6 rounded-xl shadow-2xl px-5 py-4 flex items-center gap-3 bg-white border border-gray-100">
+              <div className="w-12 h-12 rounded-full flex items-center justify-center text-white shrink-0 shadow-sm"
+                style={{ background: ORANGE }}>
                 <Trophy size={22} />
               </div>
               <div>
@@ -336,7 +453,7 @@ function About({ onOpen }: { onOpen: () => void }) {
           </div>
 
           {/* Right — about content */}
-          <div className="lg:pl-4">
+          <div className={`lg:pl-4 transition-all duration-700 delay-200 ${inView ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10'}`}>
             <div className="flex items-center gap-2 mb-4">
               <GraduationCap size={16} style={{ color: ORANGE }} />
               <span className="text-sm font-bold uppercase tracking-widest" style={{ color: ORANGE }}>ABOUT US</span>
@@ -353,11 +470,12 @@ function About({ onOpen }: { onOpen: () => void }) {
 
             <div className="space-y-5 mb-8">
               {[
-                { icon: BookOpen, title: 'MCQ Practice',    desc: 'Thousands of subject-wise MCQs across all compulsory and optional subjects with instant grading and PDF export.' },
-                { icon: Users,    title: 'Study Partner Network', desc: 'Match with fellow aspirants preparing the same optional subjects and build productive study groups.' },
+                { icon: BookOpen, title: 'MCQ Practice',         desc: 'Thousands of subject-wise MCQs across all compulsory and optional subjects with instant grading and PDF export.' },
+                { icon: Users,    title: 'Study Partner Network', desc: 'Match with fellow aspirants preparing the same optional subjects and build productive study groups.'             },
               ].map(({ icon: Icon, title, desc }) => (
                 <div key={title} className="flex gap-4 items-start">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-white shrink-0" style={{ background: ORANGE }}>
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center text-white shrink-0 shadow-sm"
+                    style={{ background: ORANGE }}>
                     <Icon size={18} />
                   </div>
                   <div>
@@ -368,25 +486,24 @@ function About({ onOpen }: { onOpen: () => void }) {
               ))}
             </div>
 
-            {/* CTA row */}
             <div className="flex flex-wrap items-center gap-6 pt-2">
-              <button
-                onClick={() => user ? navigate('/dashboard') : onOpen()}
-                className="flex items-center gap-2 px-6 py-3 rounded text-white text-sm font-bold hover:opacity-90 transition-opacity"
+              <button onClick={() => user ? navigate('/dashboard') : onOpen()}
+                className="flex items-center gap-2 px-6 py-3 rounded-lg text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-sm"
                 style={{ background: ORANGE }}>
                 DISCOVER MORE <ArrowRight size={15} />
               </button>
-              <a href="tel:+923332531119" className="flex items-center gap-2 text-sm font-bold text-gray-700 hover:text-gray-900">
-                <div className="w-9 h-9 rounded-full flex items-center justify-center text-white" style={{ background: TEAL }}>
+              <a href="tel:+923332531119" className="flex items-center gap-2 text-sm font-bold text-gray-700 hover:text-gray-900 transition-colors">
+                <div className="w-9 h-9 rounded-full flex items-center justify-center text-white"
+                  style={{ background: TEAL }}>
                   <Phone size={15} />
                 </div>
                 +92 333 2531119
               </a>
             </div>
 
-            {/* Counter */}
-            <div className="mt-6 pl-0">
+            <div className="mt-6 flex items-baseline gap-2">
               <span className="text-5xl font-black" style={{ color: TEAL }}>99</span>
+              <span className="text-sm text-gray-400 font-medium">% positive feedback from aspirants</span>
             </div>
           </div>
         </div>
@@ -396,24 +513,16 @@ function About({ onOpen }: { onOpen: () => void }) {
 }
 
 /* ══════════════════════════════════════════════════════════
-   STATS BANNER
+   STATS BANNER — animated count-up
 ══════════════════════════════════════════════════════════ */
 function StatsBanner() {
+  const { ref, inView } = useInView()
+
   return (
     <section style={{ background: TEAL }} className="py-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div ref={ref} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
-          {STATS.map(({ value, label, icon: Icon }) => (
-            <div key={label} className="text-center text-white">
-              {/* Icon in orange circle */}
-              <div className="w-16 h-16 rounded-full flex items-center justify-center text-white mx-auto mb-4 border-4 border-white/20"
-                style={{ background: ORANGE }}>
-                <Icon size={28} />
-              </div>
-              <p className="text-4xl font-black mb-1">{value}</p>
-              <p className="text-sm font-semibold opacity-80">+ {label}</p>
-            </div>
-          ))}
+          {STATS.map(s => <StatItem key={s.label} {...s} active={inView} />)}
         </div>
       </div>
     </section>
@@ -421,28 +530,27 @@ function StatsBanner() {
 }
 
 /* ══════════════════════════════════════════════════════════
-   COURSES / MODULES SECTION
+   COURSES / MODULES
 ══════════════════════════════════════════════════════════ */
 function CoursesSection() {
   const navigate = useNavigate()
+  const { ref, inView } = useInView()
 
   const ALL_MODULES = [
-    { title: 'MCQ Practice',      tag: 'Practice',    icon: BookOpen,  grad: `linear-gradient(135deg,${TEAL},#2D9E95)`, lessons: '5000+ MCQs',   route: '/practice'   },
-    { title: 'Past Papers',       tag: 'Resources',   icon: FileText,  grad: 'linear-gradient(135deg,#0369A1,#38BDF8)', lessons: '150+ Papers', route: '/past-papers' },
-    { title: 'Premium Notes',     tag: 'Premium',     icon: Star,      grad: 'linear-gradient(135deg,#92400E,#F59E0B)', lessons: 'Expert Notes', route: '/premium'    },
-    { title: 'Study Partner',     tag: 'Community',   icon: Users,     grad: 'linear-gradient(135deg,#5B21B6,#A855F7)', lessons: '2K+ Users',   route: '/partner'    },
-    { title: 'Essay Writing',     tag: 'Practice',    icon: PenLine,   grad: 'linear-gradient(135deg,#9D174D,#F472B6)', lessons: 'PDF Upload',  route: '/essay'      },
-    { title: 'News & Affairs',    tag: 'Current',     icon: Newspaper, grad: 'linear-gradient(135deg,#065F46,#34D399)', lessons: 'Daily Feed',  route: '/news'       },
-    { title: 'Books Marketplace', tag: 'Market',      icon: BookMarked,grad: 'linear-gradient(135deg,#78350F,#FBBF24)', lessons: 'Buy & Sell',  route: '/books'      },
-    { title: 'Study Plan',        tag: 'Planning',    icon: Calendar,  grad: 'linear-gradient(135deg,#1E3A5F,#60A5FA)', lessons: '12 Months',   route: '/study-plan' },
-    { title: 'News & Resources',  tag: 'Resources',   icon: Award,     grad: 'linear-gradient(135deg,#1D4ED8,#818CF8)', lessons: 'All Topics',  route: '/news'       },
+    { title: 'MCQ Practice',      tag: 'Practice',  icon: BookOpen,   grad: `linear-gradient(135deg,${TEAL},#2D9E95)`,  lessons: '5000+ MCQs',   route: '/practice'   },
+    { title: 'Past Papers',       tag: 'Resources', icon: FileText,   grad: 'linear-gradient(135deg,#0369A1,#38BDF8)',  lessons: '150+ Papers',  route: '/past-papers' },
+    { title: 'Premium Notes',     tag: 'Premium',   icon: Star,       grad: 'linear-gradient(135deg,#92400E,#F59E0B)',  lessons: 'Expert Notes', route: '/premium'    },
+    { title: 'Study Partner',     tag: 'Community', icon: Users,      grad: 'linear-gradient(135deg,#5B21B6,#A855F7)',  lessons: '2K+ Users',    route: '/partner'    },
+    { title: 'Essay Writing',     tag: 'Practice',  icon: PenLine,    grad: 'linear-gradient(135deg,#9D174D,#F472B6)',  lessons: 'PDF Upload',   route: '/essay'      },
+    { title: 'News & Affairs',    tag: 'Current',   icon: Newspaper,  grad: 'linear-gradient(135deg,#065F46,#34D399)',  lessons: 'Daily Feed',   route: '/news'       },
+    { title: 'Books Marketplace', tag: 'Market',    icon: BookMarked, grad: 'linear-gradient(135deg,#78350F,#FBBF24)',  lessons: 'Buy & Sell',   route: '/books'      },
+    { title: 'Study Plan',        tag: 'Planning',  icon: Calendar,   grad: 'linear-gradient(135deg,#1E3A5F,#60A5FA)',  lessons: '12 Months',    route: '/study-plan' },
   ]
 
   return (
-    <section id="modules" className="bg-white py-20">
+    <section id="modules" className="bg-gray-50 py-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
-        {/* Section header */}
         <div className="text-center mb-12">
           <div className="flex items-center justify-center gap-2 mb-3">
             <GraduationCap size={16} style={{ color: ORANGE }} />
@@ -452,63 +560,56 @@ function CoursesSection() {
             Let's Check Our <span style={{ color: ORANGE }}>Modules</span>
           </h2>
           <p className="text-gray-500 text-sm mt-4 max-w-xl mx-auto leading-relaxed">
-            Everything a CSS/PMS aspirant needs — organised into focused, easy-to-use preparation modules. Access all of them for free.
+            Everything a CSS/PMS aspirant needs — organised into focused, easy-to-use preparation modules. All free.
           </p>
         </div>
 
-        {/* 3-column course cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7">
-          {ALL_MODULES.slice(0, 6).map(({ title, tag, icon: Icon, grad, lessons, route }) => (
-            <div key={title}
-              onClick={() => navigate(route)}
-              className="rounded-xl overflow-hidden border border-gray-100 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all duration-200 cursor-pointer bg-white">
+        <div ref={ref} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {ALL_MODULES.map(({ title, tag, icon: Icon, grad, lessons, route }, idx) => (
+            <div key={title} onClick={() => navigate(route)}
+              className="rounded-xl overflow-hidden border border-gray-100 shadow-md hover:shadow-xl hover:-translate-y-1.5 transition-all duration-250 cursor-pointer bg-white"
+              style={{
+                opacity: inView ? 1 : 0,
+                transform: inView ? 'translateY(0)' : 'translateY(24px)',
+                transition: `opacity 0.5s ease ${idx * 60}ms, transform 0.5s ease ${idx * 60}ms, box-shadow 0.2s, translate 0.2s`,
+              }}>
 
-              {/* Image area with gradient */}
-              <div className="relative h-44 flex items-center justify-center" style={{ background: grad }}>
-                <Icon size={56} className="text-white/90 drop-shadow" />
-
-                {/* Top-left tag */}
-                <span className="absolute top-4 left-4 text-white text-[10px] font-bold uppercase px-3 py-1 rounded"
+              {/* Gradient image area */}
+              <div className="relative h-36 flex items-center justify-center" style={{ background: grad }}>
+                <Icon size={44} className="text-white/90 drop-shadow-lg" />
+                <span className="absolute top-3 left-3 text-white text-[10px] font-bold uppercase px-2.5 py-1 rounded-md"
                   style={{ background: ORANGE }}>
                   {tag}
                 </span>
-
-                {/* Bottom-left lessons */}
-                <div className="absolute bottom-4 left-4 flex items-center gap-1.5 bg-black/30 backdrop-blur-sm rounded px-2.5 py-1">
-                  <Clock size={11} className="text-white" />
-                  <span className="text-white text-[11px] font-semibold">{lessons}</span>
+                <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-black/30 backdrop-blur-sm rounded-md px-2 py-1">
+                  <Clock size={10} className="text-white" />
+                  <span className="text-white text-[10px] font-semibold">{lessons}</span>
                 </div>
               </div>
 
               {/* Card body */}
-              <div className="p-5">
-                {/* Rating */}
+              <div className="p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Stars5 />
                   <span className="text-gray-400 text-xs">(4.8)</span>
                 </div>
-
-                <h3 className="font-black text-gray-900 text-base mb-3 leading-tight">{title}</h3>
-
-                {/* Bottom row */}
-                <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                  <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold" style={{ background: TEAL }}>
-                      C
-                    </div>
-                    <span className="text-xs text-gray-500">CssBuddy Expert</span>
+                <h3 className="font-black text-gray-900 text-sm mb-3 leading-snug">{title}</h3>
+                <div className="flex items-center justify-between pt-2.5 border-t border-gray-100">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
+                      style={{ background: TEAL }}>C</div>
+                    <span className="text-[11px] text-gray-400">CssBuddy Expert</span>
                   </div>
-                  <span className="font-black text-base" style={{ color: ORANGE }}>Free</span>
+                  <span className="font-black text-sm" style={{ color: ORANGE }}>Free</span>
                 </div>
               </div>
             </div>
           ))}
         </div>
 
-        {/* View all button */}
         <div className="text-center mt-10">
           <button onClick={() => navigate('/dashboard')}
-            className="inline-flex items-center gap-2 px-7 py-3.5 rounded text-white font-bold text-sm hover:opacity-90 transition-opacity"
+            className="inline-flex items-center gap-2 px-7 py-3.5 rounded-lg text-white font-bold text-sm hover:opacity-90 transition-opacity shadow-sm"
             style={{ background: ORANGE }}>
             View All Modules <ArrowRight size={15} />
           </button>
@@ -519,19 +620,19 @@ function CoursesSection() {
 }
 
 /* ══════════════════════════════════════════════════════════
-   CTA / JOIN SECTION
+   JOIN / ENROLL
 ══════════════════════════════════════════════════════════ */
 function JoinSection({ onOpen }: { onOpen: () => void }) {
   const user = useAuthStore((s) => s.user)
   const navigate = useNavigate()
+  const { ref, inView } = useInView()
 
   return (
-    <section className="py-20 bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="py-20 bg-white">
+      <div ref={ref} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
 
-          {/* Left */}
-          <div>
+          <div className={`transition-all duration-700 ${inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
             <div className="flex items-center gap-2 mb-4">
               <GraduationCap size={16} style={{ color: ORANGE }} />
               <span className="text-sm font-bold uppercase tracking-widest" style={{ color: ORANGE }}>JOIN FREE</span>
@@ -553,36 +654,54 @@ function JoinSection({ onOpen }: { onOpen: () => void }) {
                 'Essay submission with expert feedback',
                 'Daily current affairs news feed',
                 'Progress tracking and milestone planner',
-              ].map((p) => (
+              ].map(p => (
                 <li key={p} className="flex items-center gap-2.5 text-sm text-gray-700">
                   <CheckCircle size={16} style={{ color: ORANGE }} className="shrink-0" />
                   {p}
                 </li>
               ))}
             </ul>
-            <button
-              onClick={() => user ? navigate('/dashboard') : onOpen()}
-              className="flex items-center gap-2 px-7 py-3.5 rounded text-white font-bold text-sm hover:opacity-90 transition-opacity"
+            <button onClick={() => user ? navigate('/dashboard') : onOpen()}
+              className="inline-flex items-center gap-2 px-7 py-3.5 rounded-lg text-white font-bold text-sm hover:opacity-90 transition-opacity shadow-sm"
               style={{ background: ORANGE }}>
               {user ? 'Open Dashboard' : 'Become an Aspirant'} <ArrowRight size={15} />
             </button>
           </div>
 
-          {/* Right — feature tiles */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Feature tiles with images */}
+          <div className={`grid grid-cols-2 gap-4 transition-all duration-700 delay-200 ${inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
             {[
-              { icon: BookOpen,  t: 'MCQ Practice',  s: '5000+ Questions',  bg: '#EFF6FF' },
-              { icon: Trophy,    t: 'Instant Score',  s: 'Live Grading',     bg: '#FFF7ED' },
-              { icon: FileText,  t: 'Past Papers',    s: '2016 – 2023',      bg: '#F0FDF4' },
-              { icon: Star,      t: 'Expert Notes',   s: 'Screening & MPT',  bg: '#F5F3FF' },
-            ].map(({ icon: Icon, t, s, bg }) => (
-              <div key={t} className="rounded-xl p-5 shadow-sm border border-gray-100 flex flex-col gap-3" style={{ background: bg }}>
-                <div className="w-11 h-11 rounded-full flex items-center justify-center text-white shrink-0" style={{ background: TEAL }}>
-                  <Icon size={20} />
+              {
+                icon: BookOpen, t: 'MCQ Practice',  s: '5000+ Questions', bg: '#EFF6FF',
+                img: 'https://images.unsplash.com/photo-1606326608606-aa0b62935f2b?auto=format&fit=crop&w=300&q=70',
+              },
+              {
+                icon: Trophy,   t: 'Instant Score',  s: 'Live Grading',    bg: '#FFF7ED',
+                img: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=300&q=70',
+              },
+              {
+                icon: FileText, t: 'Past Papers',    s: '2016 – 2023',     bg: '#F0FDF4',
+                img: 'https://images.unsplash.com/photo-1568667256549-094345857637?auto=format&fit=crop&w=300&q=70',
+              },
+              {
+                icon: Star,     t: 'Expert Notes',   s: 'Screening & MPT', bg: '#F5F3FF',
+                img: 'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?auto=format&fit=crop&w=300&q=70',
+              },
+            ].map(({ icon: Icon, t, s, bg, img }) => (
+              <div key={t} className="rounded-xl overflow-hidden shadow-sm border border-gray-100 group cursor-pointer hover:-translate-y-1 transition-all duration-200">
+                <div className="h-28 overflow-hidden relative">
+                  <img src={img} alt={t} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.2)' }} />
                 </div>
-                <div>
-                  <p className="font-bold text-gray-900 text-sm">{t}</p>
-                  <p className="text-gray-500 text-xs mt-0.5">{s}</p>
+                <div className="p-4 flex gap-3 items-start" style={{ background: bg }}>
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center text-white shrink-0"
+                    style={{ background: TEAL }}>
+                    <Icon size={17} />
+                  </div>
+                  <div>
+                    <p className="font-bold text-gray-900 text-sm">{t}</p>
+                    <p className="text-gray-500 text-xs mt-0.5">{s}</p>
+                  </div>
                 </div>
               </div>
             ))}
@@ -597,13 +716,14 @@ function JoinSection({ onOpen }: { onOpen: () => void }) {
    TESTIMONIALS
 ══════════════════════════════════════════════════════════ */
 function Testimonials() {
+  const { ref, inView } = useInView()
   const T = [
-    { name: 'Ayesha Noor',  role: 'CSS 2024 · Islamabad', stars: 5, text: 'CssBuddy completely transformed my preparation. The MCQ bank is vast and the instant feedback helped me identify my weak areas quickly. Highly recommended!' },
-    { name: 'Hamza Sheikh', role: 'PMS 2023 · Karachi',    stars: 5, text: 'The study partner feature is a game-changer. I found three friends preparing the same optionals. We studied together and it made the journey much easier.' },
-    { name: 'Sana Mirza',   role: 'CSS 2024 · Lahore',    stars: 5, text: 'Premium notes are top-notch, and the essay feedback I received was very constructive. My writing scores improved significantly in the actual exam.' },
+    { name: 'Ayesha Noor',  role: 'CSS 2024 · Islamabad', text: 'CssBuddy completely transformed my preparation. The MCQ bank is vast and the instant feedback helped me identify weak areas quickly. Highly recommended!' },
+    { name: 'Hamza Sheikh', role: 'PMS 2023 · Karachi',    text: 'The study partner feature is a game-changer. I found three friends preparing the same optionals and we studied together — it made the journey much easier.' },
+    { name: 'Sana Mirza',   role: 'CSS 2024 · Lahore',    text: 'Premium notes are top-notch and the essay feedback I received was very constructive. My writing scores improved significantly in the actual exam.' },
   ]
   return (
-    <section id="blog" className="py-20" style={{ background: '#F9FAFB' }}>
+    <section id="blog" style={{ background: '#F9FAFB' }} className="py-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
           <div className="flex items-center justify-center gap-2 mb-3">
@@ -615,14 +735,20 @@ function Testimonials() {
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {T.map(({ name, role, stars: _s, text }, i) => (
-            <div key={name} className="bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow p-6 flex flex-col gap-4 border border-gray-100">
+        <div ref={ref} className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {T.map(({ name, role, text }, i) => (
+            <div key={name}
+              className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-6 flex flex-col gap-4 border border-gray-100"
+              style={{
+                opacity: inView ? 1 : 0,
+                transform: inView ? 'translateY(0)' : 'translateY(20px)',
+                transition: `opacity 0.5s ease ${i * 120}ms, transform 0.5s ease ${i * 120}ms`,
+              }}>
               <Stars5 />
               <p className="text-gray-600 text-sm leading-relaxed flex-1">"{text}"</p>
               <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
-                <div className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-base"
-                  style={{ background: [TEAL, ORANGE, TEAL][i] }}>
+                <div className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold"
+                  style={{ background: i % 2 === 0 ? TEAL : ORANGE }}>
                   {name[0]}
                 </div>
                 <div>
@@ -648,16 +774,16 @@ function Footer({ onOpen }: { onOpen: () => void }) {
   return (
     <footer>
       {/* CTA strip */}
-      <div style={{ background: TEAL }} className="py-12 border-b border-white/10">
+      <div style={{ background: TEAL }} className="py-12">
         <div className="max-w-4xl mx-auto px-4 text-center text-white">
           <h3 className="text-2xl sm:text-3xl font-black mb-3">
             Ready to Start Your <span style={{ color: ORANGE }}>CSS/PMS</span> Journey?
           </h3>
           <p className="text-sm opacity-80 mb-7">Join thousands of aspirants already preparing smarter with CssBuddy.pk</p>
           <button onClick={() => user ? navigate('/dashboard') : onOpen()}
-            className="inline-flex items-center gap-2 font-bold px-8 py-3.5 rounded text-white text-sm hover:opacity-90 transition-opacity shadow-lg"
+            className="inline-flex items-center gap-2 font-bold px-8 py-3.5 rounded-lg text-white text-sm hover:opacity-90 transition-opacity shadow-lg"
             style={{ background: ORANGE }}>
-            {user ? 'Open Dashboard' : "Get Started Free"} <ArrowRight size={15} />
+            {user ? 'Open Dashboard' : 'Get Started Free'} <ArrowRight size={15} />
           </button>
         </div>
       </div>
@@ -667,16 +793,17 @@ function Footer({ onOpen }: { onOpen: () => void }) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 rounded flex items-center justify-center text-white text-xs font-black" style={{ background: TEAL }}>
-                  <GraduationCap size={16} />
+              <div className="flex items-center gap-2.5 mb-4">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white"
+                  style={{ background: `linear-gradient(135deg, ${TEAL}, #2D9E95)` }}>
+                  <GraduationCap size={18} />
                 </div>
-                <span className="font-black text-white">CssBuddy.pk</span>
+                <span className="font-black text-white text-base">CssBuddy<span style={{ color: ORANGE }}>.pk</span></span>
               </div>
               <p className="text-xs leading-relaxed">Pakistan's most comprehensive CSS/PMS exam preparation platform. Built by aspirants, for aspirants.</p>
               <div className="flex gap-3 mt-4">
                 {[SocialIcons.Facebook, SocialIcons.Twitter, SocialIcons.Instagram, SocialIcons.Youtube].map((Icon, i) => (
-                  <a key={i} href="#" className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors">
+                  <a key={i} href="#" className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/15 flex items-center justify-center transition-colors">
                     <Icon />
                   </a>
                 ))}
@@ -689,17 +816,22 @@ function Footer({ onOpen }: { onOpen: () => void }) {
             ].map(({ t, ls }) => (
               <div key={t}>
                 <p className="font-bold text-white text-sm mb-4">{t}</p>
-                <ul className="space-y-2">
-                  {ls.map((l) => <li key={l}><a href="#" className="text-xs hover:text-white transition-colors">{l}</a></li>)}
+                <ul className="space-y-2.5">
+                  {ls.map(l => (
+                    <li key={l}>
+                      <a href="#" className="text-xs hover:text-white transition-colors">{l}</a>
+                    </li>
+                  ))}
                 </ul>
               </div>
             ))}
           </div>
+
           <div className="border-t border-white/10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
             <p>© {new Date().getFullYear()} CssBuddy.pk — Made with ❤️ for CSS/PMS aspirants</p>
             <div className="flex gap-5">
-              <a href="#" className="hover:text-white">Privacy Policy</a>
-              <a href="#" className="hover:text-white">Terms of Use</a>
+              <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
+              <a href="#" className="hover:text-white transition-colors">Terms of Use</a>
             </div>
           </div>
         </div>
@@ -726,15 +858,14 @@ export function Landing() {
   return (
     <div className="min-h-screen flex flex-col font-sans">
       <TopBar />
-      <Navbar   onOpen={open} />
-      <Hero     onOpen={open} />
-      <About    onOpen={open} />
+      <Navbar      onOpen={open} />
+      <Hero        onOpen={open} />
+      <About       onOpen={open} />
       <StatsBanner />
       <CoursesSection />
-      <JoinSection  onOpen={open} />
+      <JoinSection onOpen={open} />
       <Testimonials />
-      <Footer   onOpen={open} />
-
+      <Footer      onOpen={open} />
       {authOpen && <AuthModal defaultOpen onClose={() => setAuthOpen(false)} />}
     </div>
   )
