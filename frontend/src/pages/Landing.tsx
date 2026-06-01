@@ -82,24 +82,36 @@ const SLIDES = [
     line1: 'Start Your Beautiful',
     line2pre: 'And ', highlight: 'Bright', line2post: ' Future',
     sub: "Pakistan's most comprehensive CSS/PMS preparation platform. Practice MCQs, browse past papers, find study partners, and get expert essay feedback — all in one place.",
-    img: 'https://images.unsplash.com/photo-1481627834876-b7833e8f5570?auto=format&fit=crop&w=960&q=80',
-    alt: 'Open books in a sunlit library',
+    img: '/slider/slide1.jpg',
+    alt: 'CSS/PMS aspirant student',
+    overlay: 'linear-gradient(100deg, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.45) 50%, transparent 75%)',
   },
   {
-    badge: '✦ MASTER EVERY CSS SUBJECT',
-    line1: 'Study Smart &',
-    line2pre: '', highlight: 'Ace', line2post: ' the Exam',
-    sub: '5000+ subject-wise MCQs, 8 years of past papers, and expert essay feedback to help you clear CSS/PMS with full confidence.',
-    img: 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?auto=format&fit=crop&w=960&q=80',
-    alt: 'Student studying at a desk with books',
+    badge: '✦ YOUR COMPLETE STUDY HUB',
+    line1: 'All Your Resources,',
+    line2pre: '', highlight: 'One Platform', line2post: '',
+    sub: 'Past papers, MCQ banks, premium notes, essay writing and study partners — everything a CSS/PMS aspirant needs, completely free.',
+    img: '/slider/slide2.jpg',
+    alt: 'Student with books',
+    overlay: 'linear-gradient(100deg, rgba(29,102,96,0.90) 0%, rgba(29,102,96,0.72) 50%, rgba(29,102,96,0.08) 75%)',
   },
   {
-    badge: '✦ 48 SUBJECTS · 42 OPTIONALS',
-    line1: 'Your Complete',
-    line2pre: '', highlight: 'CSS/PMS', line2post: ' Platform',
-    sub: 'Join thousands of aspirants preparing smarter. Study plans, essay writing, book marketplace, and study partner matching — all free.',
-    img: 'https://images.unsplash.com/photo-1456735190827-d1262f71b8a3?auto=format&fit=crop&w=960&q=80',
-    alt: 'Pen and notebooks on a study desk',
+    badge: '✦ PRACTICE MAKES PERFECT',
+    line1: 'Master Every',
+    line2pre: 'CSS/PMS ', highlight: 'Subject', line2post: '',
+    sub: '5000+ MCQs, 8 years of past papers, and instant scoring to keep your CSS/PMS preparation sharp and on track.',
+    img: '/slider/slide3.jpg',
+    alt: 'Confident student ready for exams',
+    overlay: 'linear-gradient(100deg, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.42) 50%, transparent 75%)',
+  },
+  {
+    badge: '✦ STUDY SMART · ACHIEVE MORE',
+    line1: 'Your CSS/PMS',
+    line2pre: 'Success ', highlight: 'Starts Here', line2post: '',
+    sub: 'Join thousands of aspirants preparing smarter with personalised study plans, partner matching, and expert essay feedback.',
+    img: '/slider/slide4.jpg',
+    alt: 'Student pointing to success',
+    overlay: 'linear-gradient(100deg, rgba(0,40,30,0.72) 0%, rgba(0,40,30,0.50) 50%, transparent 75%)',
   },
 ]
 
@@ -191,36 +203,44 @@ function Navbar({ onOpen }: { onOpen: () => void }) {
   const [mobileOpen, setMobileOpen] = useState(false)
   const user = useAuthStore((s) => s.user)
   const navigate = useNavigate()
-  const NAV = ['Home', 'Modules', 'Subjects', 'Resources', 'Study Plan', 'Blog', 'Contact']
+  const NAV = [
+    { label: 'Home',          route: '/'            },
+    { label: 'Study Plan',    route: '/study-plan'  },
+    { label: 'Practice',      route: '/practice'    },
+    { label: 'Books Market',  route: '/books'       },
+    { label: 'Past Papers',   route: '/past-papers' },
+    { label: 'News & Affairs',route: '/news'        },
+    { label: 'Premium Notes', route: '/premium'     },
+    { label: 'Study Partner', route: '/partner'     },
+    { label: 'Essay Writing', route: '/essay'       },
+  ]
 
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center h-[70px] gap-6">
+      <div className="max-w-7xl mx-auto px-3 sm:px-5 flex items-center h-[66px] gap-4">
 
         {/* Logo */}
-        <a href="/" className="flex items-center gap-2.5 shrink-0">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-sm"
+        <a href="/" className="flex items-center gap-2 shrink-0">
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center shadow-sm"
             style={{ background: `linear-gradient(135deg, ${TEAL} 0%, #2D9E95 100%)` }}>
-            <GraduationCap size={22} className="text-white" />
+            <GraduationCap size={20} className="text-white" />
           </div>
           <div className="leading-tight">
-            <p className="font-black text-xl text-gray-900 leading-none tracking-tight">
+            <p className="font-black text-lg text-gray-900 leading-none tracking-tight">
               CssBuddy<span style={{ color: ORANGE }}>.pk</span>
             </p>
-            <p className="text-[10px] text-gray-400 font-medium tracking-wide">CSS/PMS Prep Platform</p>
+            <p className="text-[9px] text-gray-400 font-medium tracking-wide">CSS/PMS Prep</p>
           </div>
         </a>
 
         {/* Desktop nav */}
-        <nav className="hidden lg:flex items-center gap-5 flex-1 justify-center">
-          {NAV.map((l, i) => (
-            <a key={l} href={`#${l.toLowerCase().replace(' ', '-')}`}
-              className={`text-sm font-semibold transition-colors flex items-center gap-0.5 ${
-                i === 0 ? 'text-gray-900' : 'text-gray-600 hover:text-gray-900'
-              }`}>
-              {l}
-              {i > 0 && i < 5 && <span className="text-gray-400 text-[10px] ml-0.5">▾</span>}
-            </a>
+        <nav className="hidden xl:flex items-center gap-1 flex-1 justify-center">
+          {NAV.map(({ label, route }) => (
+            <button key={label}
+              onClick={() => navigate(route)}
+              className="text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors text-gray-600 hover:text-gray-900 hover:bg-gray-50 whitespace-nowrap">
+              {label}
+            </button>
           ))}
         </nav>
 
@@ -245,7 +265,7 @@ function Navbar({ onOpen }: { onOpen: () => void }) {
         </div>
 
         {/* Mobile toggle */}
-        <button onClick={() => setMobileOpen(o => !o)} className="lg:hidden ml-auto text-gray-600 p-1.5">
+        <button onClick={() => setMobileOpen(o => !o)} className="xl:hidden ml-auto text-gray-600 p-1.5">
           {mobileOpen
             ? <span className="font-bold text-xl leading-none">✕</span>
             : <span className="text-2xl leading-none">☰</span>}
@@ -253,10 +273,13 @@ function Navbar({ onOpen }: { onOpen: () => void }) {
       </div>
 
       {mobileOpen && (
-        <div className="lg:hidden bg-white border-t px-4 py-4 space-y-3">
-          {NAV.map(l => (
-            <a key={l} href={`#${l.toLowerCase()}`} onClick={() => setMobileOpen(false)}
-              className="block text-sm font-semibold text-gray-700 py-1.5 border-b border-gray-100">{l}</a>
+        <div className="xl:hidden bg-white border-t px-4 py-3 space-y-1">
+          {NAV.map(({ label, route }) => (
+            <button key={label}
+              onClick={() => { navigate(route); setMobileOpen(false) }}
+              className="block w-full text-left text-sm font-semibold text-gray-700 py-2 border-b border-gray-100 hover:text-gray-900">
+              {label}
+            </button>
           ))}
           <button onClick={() => { onOpen(); setMobileOpen(false) }}
             className="w-full mt-2 py-3 rounded-lg text-white font-bold text-sm" style={{ background: ORANGE }}>
@@ -313,9 +336,11 @@ function Hero({ onOpen }: { onOpen: () => void }) {
           }} />
       ))}
 
-      {/* Dark gradient overlay — text side */}
-      <div className="absolute inset-0 z-[1]"
-        style={{ background: 'linear-gradient(100deg, rgba(8,25,24,0.93) 0%, rgba(10,38,34,0.88) 48%, rgba(29,102,96,0.35) 100%)' }} />
+      {/* Per-slide overlay — crossfades with slide */}
+      {SLIDES.map((s, i) => (
+        <div key={i} className="absolute inset-0 z-[1] transition-opacity duration-700"
+          style={{ background: s.overlay, opacity: i === current ? 1 : 0 }} />
+      ))}
 
       {/* Frosted image panel — right side */}
       <div className="absolute right-0 top-0 bottom-0 w-[44%] z-[2] hidden lg:block overflow-hidden">
