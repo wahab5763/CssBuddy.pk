@@ -19,7 +19,7 @@ function FlipCard({ q }: { q: FlashcardData }) {
   const subjectColors: Record<string, string> = {
     'Current Affairs': 'from-blue-500 to-cyan-400',
     'Pakistan Affairs': 'from-emerald-500 to-teal-400',
-    'Islamic Studies':  'from-purple-500 to-violet-400',
+    'Islamic Studies':  'from-teal-600 to-teal-400',
     'English (Precis & Composition)': 'from-orange-500 to-amber-400',
     'General Science & Ability': 'from-pink-500 to-rose-400',
   }

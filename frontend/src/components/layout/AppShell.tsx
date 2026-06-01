@@ -9,7 +9,7 @@ export function AppShell() {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
+    <div className="min-h-screen flex flex-col bg-[#eef0f4] dark:bg-gray-950 text-gray-900 dark:text-gray-100">
       <Topbar onMenuToggle={() => setMobileOpen((o) => !o)} isMobileOpen={mobileOpen} />
 
       <div className="flex flex-1 min-h-0">

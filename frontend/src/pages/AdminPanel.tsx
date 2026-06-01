@@ -26,7 +26,7 @@ function OverviewTab() {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
       <StatCard icon={<Users size={22} className="text-blue-500" />} label="Total Users" value={data?.users ?? '—'} color="bg-blue-50 dark:bg-blue-900/20" />
-      <StatCard icon={<BookOpen size={22} className="text-violet-500" />} label="MCQs" value={data?.mcqs ?? '—'} color="bg-violet-50 dark:bg-violet-900/20" />
+      <StatCard icon={<BookOpen size={22} className="text-teal-600" />} label="MCQs" value={data?.mcqs ?? '—'} color="bg-teal-50 dark:bg-teal-900/20" />
       <StatCard icon={<PenLine size={22} className="text-pink-500" />} label="Essays" value={data?.essays ?? '—'} color="bg-pink-50 dark:bg-pink-900/20" />
       <StatCard icon={<BarChart3 size={22} className="text-orange-500" />} label="Pending Essays" value={data?.essays_pending ?? '—'} color="bg-orange-50 dark:bg-orange-900/20" />
     </div>

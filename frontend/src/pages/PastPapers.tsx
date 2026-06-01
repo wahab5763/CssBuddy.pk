@@ -5,7 +5,7 @@ import { FileText, ExternalLink, X, Download, ChevronDown, ChevronUp } from 'luc
 import { cn } from '@/lib/utils'
 
 const SUBJECT_COLORS: Record<string, string> = {
-  Essay:            'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+  Essay:            'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300 border-teal-200 dark:border-teal-800',
   English:          'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800',
   'Current Affairs':'bg-sky-100 dark:bg-sky-900/30 text-sky-700 dark:text-sky-300 border-sky-200 dark:border-sky-800',
   'Pakistan Affairs':'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800',
