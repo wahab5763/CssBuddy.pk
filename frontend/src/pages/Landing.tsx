@@ -99,8 +99,7 @@ const SLIDES = [
     img: '/slider/slide2.png',
     alt: 'Student with books',
     bgPos: '55% center',
-    overlay: 'linear-gradient(95deg, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.78) 42%, rgba(255,255,255,0.15) 62%, transparent 78%)',
-    darkText: true,
+    overlay: 'linear-gradient(95deg, rgba(10,40,60,0.88) 0%, rgba(10,40,60,0.65) 48%, rgba(10,40,60,0.12) 68%, transparent 82%)',
   },
   {
     badge: '✦ PRACTICE MAKES PERFECT',
