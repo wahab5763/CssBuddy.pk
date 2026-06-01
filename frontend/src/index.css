@@ -15,7 +15,7 @@
     scroll-behavior: smooth;
   }
 
-  body { margin: 0; background: #f8fafc; }
+  body { margin: 0; background: #c3cada; }
   .dark body { background: #0f1117; }
 
   #root { min-height: 100svh; display: flex; flex-direction: column; }
@@ -23,14 +23,19 @@
   /* Scrollbar */
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 99px; }
+  ::-webkit-scrollbar-thumb { background: #9ea8b8; border-radius: 99px; }
   .dark ::-webkit-scrollbar-thumb { background: #374151; }
-  ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+  ::-webkit-scrollbar-thumb:hover { background: #7a8699; }
 
   /* Selection */
-  ::selection { background: rgba(79, 70, 229, 0.15); color: inherit; }
+  ::selection { background: rgba(29, 102, 96, 0.2); color: inherit; }
 
-  h1, h2, h3, h4, h5, h6 { font-weight: 600; letter-spacing: -0.02em; }
+  h1, h2, h3 {
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+  }
+  h4, h5, h6 { font-weight: 600; letter-spacing: -0.01em; }
   p { margin: 0; }
   a { color: inherit; text-decoration: none; }
 }

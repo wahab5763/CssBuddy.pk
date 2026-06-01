@@ -10,8 +10,12 @@ import {
 } from 'lucide-react'
 
 /* ── Colour tokens ───────────────────────────────────────── */
-const TEAL   = '#1D6660'
-const ORANGE = '#F97316'
+const TEAL    = '#1D6660'
+const ORANGE  = '#F97316'
+const NAVY    = '#0f172a'   // footer
+const HEAD    = '#0f172a'   // heading text on light bg
+const BODY    = '#334155'   // body text on light bg
+const MUTED   = '#64748b'   // muted text on light bg
 
 /* ── Inline social SVGs ──────────────────────────────────── */
 const SocialIcons = {
@@ -41,7 +45,7 @@ const SocialIcons = {
 }
 
 /* ── Scroll-reveal hook ──────────────────────────────────── */
-function useInView(threshold = 0.12) {
+function useInView(threshold = 0.05) {
   const ref = useRef<HTMLDivElement>(null)
   const [inView, setInView] = useState(false)
   useEffect(() => {
@@ -49,7 +53,7 @@ function useInView(threshold = 0.12) {
     if (!el) return
     const obs = new IntersectionObserver(
       ([e]) => { if (e.isIntersecting) { setInView(true); obs.disconnect() } },
-      { threshold }
+      { threshold, rootMargin: '0px 0px -60px 0px' }
     )
     obs.observe(el)
     return () => obs.disconnect()
@@ -413,17 +417,20 @@ function Hero({ onOpen }: { onOpen: () => void }) {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
           {FEATURES.map(({ icon: Icon, title, desc }, idx) => (
             <div key={title}
-              className="bg-white rounded-xl shadow-xl p-4 sm:p-5 border border-gray-100 hover:shadow-2xl hover:-translate-y-1 transition-all duration-200"
-              style={{ transitionDelay: `${idx * 60}ms` }}>
-              {/* Icon + Title side by side */}
+              className="bg-white rounded-xl shadow-lg p-4 sm:p-5 hover:shadow-2xl hover:-translate-y-1 transition-all duration-200"
+              style={{
+                transitionDelay: `${idx * 60}ms`,
+                borderLeft: `4px solid ${TEAL}`,
+                borderTop: '1px solid rgba(255,255,255,0.9)',
+              }}>
               <div className="flex items-center gap-2.5 mb-2.5">
                 <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center text-white shrink-0 shadow-sm"
                   style={{ background: `linear-gradient(135deg, ${TEAL} 0%, #2D9E95 100%)` }}>
                   <Icon size={18} />
                 </div>
-                <h3 className="font-bold text-gray-900 text-xs sm:text-sm leading-snug">{title}</h3>
+                <h3 className="font-bold text-sm leading-snug" style={{ color: HEAD }}>{title}</h3>
               </div>
-              <p className="text-gray-500 text-[11px] sm:text-xs leading-relaxed">{desc}</p>
+              <p className="text-[11px] sm:text-xs leading-relaxed" style={{ color: MUTED }}>{desc}</p>
             </div>
           ))}
         </div>
@@ -441,7 +448,7 @@ function About({ onOpen }: { onOpen: () => void }) {
   const { ref, inView } = useInView()
 
   return (
-    <section id="resources" className="bg-white py-14 sm:py-20 lg:py-24">
+    <section id="resources" className="py-14 sm:py-20 lg:py-24">
       <div ref={ref} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
 
@@ -473,58 +480,59 @@ function About({ onOpen }: { onOpen: () => void }) {
             </div>
           </div>
 
-          {/* Right — about content */}
+          {/* Right — about content in white card */}
           <div className={`lg:pl-4 transition-all duration-700 delay-200 ${inView ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10'}`}>
-            <div className="flex items-center gap-2 mb-4">
-              <GraduationCap size={16} style={{ color: ORANGE }} />
-              <span className="text-sm font-bold uppercase tracking-widest" style={{ color: ORANGE }}>ABOUT US</span>
-            </div>
+            <div className="bg-white rounded-2xl shadow-xl p-7 sm:p-9">
+              <div className="flex items-center gap-2 mb-4">
+                <GraduationCap size={16} style={{ color: ORANGE }} />
+                <span className="text-xs font-bold uppercase tracking-widest" style={{ color: ORANGE }}>ABOUT US</span>
+              </div>
 
-            <h2 className="text-3xl sm:text-4xl font-black text-gray-900 leading-tight mb-5">
-              Our Preparation System<br />
-              <span style={{ color: ORANGE }}>Inspires</span> You More.
-            </h2>
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black leading-tight mb-5" style={{ color: HEAD }}>
+                Our Preparation System<br />
+                <span style={{ color: ORANGE }}>Inspires</span> You More.
+              </h2>
 
-            <p className="text-gray-600 text-sm leading-relaxed mb-8">
-              CssBuddy.pk is Pakistan's most comprehensive CSS/PMS exam preparation platform. We provide everything an aspirant needs — subject-wise MCQ practice, 8 years of past papers, study partner matching, premium notes, and expert essay feedback — all in one place.
-            </p>
+              <p className="text-sm leading-relaxed mb-7" style={{ color: BODY }}>
+                CssBuddy.pk is Pakistan's most comprehensive CSS/PMS exam preparation platform. We provide everything an aspirant needs — subject-wise MCQ practice, 8 years of past papers, study partner matching, premium notes, and expert essay feedback — all in one place.
+              </p>
 
-            <div className="space-y-5 mb-8">
-              {[
-                { icon: BookOpen, title: 'MCQ Practice',         desc: 'Thousands of subject-wise MCQs across all compulsory and optional subjects with instant grading and PDF export.' },
-                { icon: Users,    title: 'Study Partner Network', desc: 'Match with fellow aspirants preparing the same optional subjects and build productive study groups.'             },
-              ].map(({ icon: Icon, title, desc }) => (
-                <div key={title} className="flex gap-4 items-start">
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center text-white shrink-0 shadow-sm"
-                    style={{ background: ORANGE }}>
-                    <Icon size={18} />
+              <div className="space-y-4 mb-7">
+                {[
+                  { icon: BookOpen, title: 'MCQ Practice',         desc: 'Thousands of subject-wise MCQs across all compulsory and optional subjects with instant grading and PDF export.' },
+                  { icon: Users,    title: 'Study Partner Network', desc: 'Match with fellow aspirants preparing the same optional subjects and build productive study groups.'             },
+                ].map(({ icon: Icon, title, desc }) => (
+                  <div key={title} className="flex gap-3 items-start p-3 rounded-xl" style={{ background: '#f8fafb' }}>
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white shrink-0 shadow-sm"
+                      style={{ background: `linear-gradient(135deg, ${ORANGE}, #fb923c)` }}>
+                      <Icon size={17} />
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm mb-0.5" style={{ color: HEAD }}>{title}</p>
+                      <p className="text-xs leading-relaxed" style={{ color: MUTED }}>{desc}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-bold text-gray-900 text-sm mb-1">{title}</p>
-                    <p className="text-gray-500 text-xs leading-relaxed">{desc}</p>
+                ))}
+              </div>
+
+              <div className="flex flex-wrap items-center gap-4">
+                <button onClick={() => user ? navigate('/dashboard') : onOpen()}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-sm"
+                  style={{ background: ORANGE }}>
+                  DISCOVER MORE <ArrowRight size={14} />
+                </button>
+                <a href="tel:+923332531119" className="flex items-center gap-2 text-sm font-bold hover:opacity-80 transition-opacity" style={{ color: TEAL }}>
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white" style={{ background: TEAL }}>
+                    <Phone size={14} />
                   </div>
-                </div>
-              ))}
-            </div>
+                  +92 333 2531119
+                </a>
+              </div>
 
-            <div className="flex flex-wrap items-center gap-6 pt-2">
-              <button onClick={() => user ? navigate('/dashboard') : onOpen()}
-                className="flex items-center gap-2 px-6 py-3 rounded-lg text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-sm"
-                style={{ background: ORANGE }}>
-                DISCOVER MORE <ArrowRight size={15} />
-              </button>
-              <a href="tel:+923332531119" className="flex items-center gap-2 text-sm font-bold text-gray-700 hover:text-gray-900 transition-colors">
-                <div className="w-9 h-9 rounded-full flex items-center justify-center text-white"
-                  style={{ background: TEAL }}>
-                  <Phone size={15} />
-                </div>
-                +92 333 2531119
-              </a>
-            </div>
-
-            <div className="mt-6 flex items-baseline gap-2">
-              <span className="text-5xl font-black" style={{ color: TEAL }}>99</span>
-              <span className="text-sm text-gray-400 font-medium">% positive feedback from aspirants</span>
+              <div className="mt-5 pt-5 border-t border-gray-100 flex items-baseline gap-2">
+                <span className="text-4xl font-black" style={{ color: TEAL }}>99%</span>
+                <span className="text-xs font-medium" style={{ color: MUTED }}>positive feedback from aspirants</span>
+              </div>
             </div>
           </div>
         </div>
@@ -569,18 +577,18 @@ function CoursesSection() {
   ]
 
   return (
-    <section id="modules" className="bg-gray-50 py-20">
+    <section id="modules" className="py-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
         <div className="text-center mb-12">
           <div className="flex items-center justify-center gap-2 mb-3">
             <GraduationCap size={16} style={{ color: ORANGE }} />
-            <span className="text-sm font-bold uppercase tracking-widest" style={{ color: ORANGE }}>OUR MODULES</span>
+            <span className="text-xs font-bold uppercase tracking-widest" style={{ color: ORANGE }}>OUR MODULES</span>
           </div>
-          <h2 className="text-3xl sm:text-4xl font-black text-gray-900">
+          <h2 className="text-3xl sm:text-4xl font-black" style={{ color: HEAD }}>
             Let's Check Our <span style={{ color: ORANGE }}>Modules</span>
           </h2>
-          <p className="text-gray-500 text-sm mt-4 max-w-xl mx-auto leading-relaxed">
+          <p className="text-sm mt-4 max-w-xl mx-auto leading-relaxed" style={{ color: MUTED }}>
             Everything a CSS/PMS aspirant needs — organised into focused, easy-to-use preparation modules. All free.
           </p>
         </div>
@@ -614,12 +622,12 @@ function CoursesSection() {
                   <Stars5 />
                   <span className="text-gray-400 text-xs">(4.8)</span>
                 </div>
-                <h3 className="font-black text-gray-900 text-sm mb-3 leading-snug">{title}</h3>
+                <h3 className="font-black text-sm mb-3 leading-snug" style={{ color: HEAD }}>{title}</h3>
                 <div className="flex items-center justify-between pt-2.5 border-t border-gray-100">
                   <div className="flex items-center gap-1.5">
                     <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
                       style={{ background: TEAL }}>C</div>
-                    <span className="text-[11px] text-gray-400">CssBuddy Expert</span>
+                    <span className="text-[11px]" style={{ color: MUTED }}>CssBuddy Expert</span>
                   </div>
                   <span className="font-black text-sm" style={{ color: ORANGE }}>Free</span>
                 </div>
@@ -649,25 +657,25 @@ function JoinSection({ onOpen }: { onOpen: () => void }) {
   const { ref, inView } = useInView()
 
   return (
-    <section className="py-20 bg-white">
+    <section className="py-20">
       <div ref={ref} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
 
-          <div className={`transition-all duration-700 ${inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+          <div className={`bg-white rounded-2xl shadow-xl p-7 sm:p-9 transition-all duration-700 ${inView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
             <div className="flex items-center gap-2 mb-4">
               <GraduationCap size={16} style={{ color: ORANGE }} />
-              <span className="text-sm font-bold uppercase tracking-widest" style={{ color: ORANGE }}>JOIN FREE</span>
+              <span className="text-xs font-bold uppercase tracking-widest" style={{ color: ORANGE }}>JOIN FREE</span>
             </div>
-            <h2 className="text-3xl sm:text-4xl font-black text-gray-900 leading-tight mb-4">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black leading-tight mb-4" style={{ color: HEAD }}>
               If You Are a Serious<br />
               CSS/PMS Aspirant<br />
               <span style={{ color: ORANGE }}>Then Enroll For Free</span>
             </h2>
-            <p className="text-gray-600 text-sm leading-relaxed mb-7">
+            <p className="text-sm leading-relaxed mb-6" style={{ color: BODY }}>
               Sign up today and get instant access to our complete suite of CSS/PMS preparation tools — no credit card required.
             </p>
-            <p className="font-bold text-gray-800 text-sm mb-4">Enjoy Many Perks</p>
-            <ul className="space-y-3 mb-8">
+            <p className="font-bold text-sm mb-3" style={{ color: HEAD }}>Enjoy Many Perks</p>
+            <ul className="space-y-2.5 mb-7">
               {[
                 'Unlimited MCQ practice for all subjects',
                 'Access to 8 years of past papers',
@@ -676,8 +684,8 @@ function JoinSection({ onOpen }: { onOpen: () => void }) {
                 'Daily current affairs news feed',
                 'Progress tracking and milestone planner',
               ].map(p => (
-                <li key={p} className="flex items-center gap-2.5 text-sm text-gray-700">
-                  <CheckCircle size={16} style={{ color: ORANGE }} className="shrink-0" />
+                <li key={p} className="flex items-center gap-2.5 text-sm" style={{ color: BODY }}>
+                  <CheckCircle size={15} style={{ color: TEAL }} className="shrink-0" />
                   {p}
                 </li>
               ))}
@@ -744,14 +752,14 @@ function Testimonials() {
     { name: 'Sana Mirza',   role: 'CSS 2024 · Lahore',    text: 'Premium notes are top-notch and the essay feedback I received was very constructive. My writing scores improved significantly in the actual exam.' },
   ]
   return (
-    <section id="blog" style={{ background: '#F9FAFB' }} className="py-20">
+    <section id="blog" className="py-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
           <div className="flex items-center justify-center gap-2 mb-3">
             <GraduationCap size={16} style={{ color: ORANGE }} />
-            <span className="text-sm font-bold uppercase tracking-widest" style={{ color: ORANGE }}>TESTIMONIALS</span>
+            <span className="text-xs font-bold uppercase tracking-widest" style={{ color: ORANGE }}>TESTIMONIALS</span>
           </div>
-          <h2 className="text-3xl sm:text-4xl font-black text-gray-900">
+          <h2 className="text-3xl sm:text-4xl font-black" style={{ color: HEAD }}>
             What Our <span style={{ color: ORANGE }}>Students</span> Say
           </h2>
         </div>
@@ -759,22 +767,23 @@ function Testimonials() {
         <div ref={ref} className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {T.map(({ name, role, text }, i) => (
             <div key={name}
-              className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-300 p-6 flex flex-col gap-4 border border-gray-100"
+              className="bg-white rounded-2xl shadow-lg hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 p-6 flex flex-col gap-4"
               style={{
                 opacity: inView ? 1 : 0,
                 transform: inView ? 'translateY(0)' : 'translateY(20px)',
                 transition: `opacity 0.5s ease ${i * 120}ms, transform 0.5s ease ${i * 120}ms`,
+                borderTop: `4px solid ${i % 2 === 0 ? TEAL : ORANGE}`,
               }}>
               <Stars5 />
-              <p className="text-gray-600 text-sm leading-relaxed flex-1">"{text}"</p>
+              <p className="text-sm leading-relaxed flex-1" style={{ color: BODY }}>"{text}"</p>
               <div className="flex items-center gap-3 pt-4 border-t border-gray-100">
-                <div className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold"
+                <div className="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-base"
                   style={{ background: i % 2 === 0 ? TEAL : ORANGE }}>
                   {name[0]}
                 </div>
                 <div>
-                  <p className="font-bold text-gray-900 text-sm">{name}</p>
-                  <p className="text-gray-400 text-xs">{role}</p>
+                  <p className="font-bold text-sm" style={{ color: HEAD }}>{name}</p>
+                  <p className="text-xs" style={{ color: MUTED }}>{role}</p>
                 </div>
               </div>
             </div>
@@ -810,7 +819,7 @@ function Footer({ onOpen }: { onOpen: () => void }) {
       </div>
 
       {/* Footer links */}
-      <div className="bg-gray-900 text-gray-400 py-12">
+      <div style={{ background: NAVY }} className="text-slate-400 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
             <div>
@@ -821,7 +830,7 @@ function Footer({ onOpen }: { onOpen: () => void }) {
                 </div>
                 <span className="font-black text-white text-base">CssBuddy<span style={{ color: ORANGE }}>.pk</span></span>
               </div>
-              <p className="text-xs leading-relaxed">Pakistan's most comprehensive CSS/PMS exam preparation platform. Built by aspirants, for aspirants.</p>
+              <p className="text-xs leading-relaxed text-slate-400">Pakistan's most comprehensive CSS/PMS exam preparation platform. Built by aspirants, for aspirants.</p>
               <div className="flex gap-3 mt-4">
                 {[SocialIcons.Facebook, SocialIcons.Twitter, SocialIcons.Instagram, SocialIcons.Youtube].map((Icon, i) => (
                   <a key={i} href="#" className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/15 flex items-center justify-center transition-colors">
