@@ -162,14 +162,14 @@ function StatItem({ end, suffix, label, icon: Icon, active }: {
   const display = end >= 1000 ? `${(count / 1000).toFixed(count >= end ? 0 : 0)}K` : String(count)
   return (
     <div className="text-center text-white">
-      <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border-4 border-white/20"
+      <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4 border-4 border-white/20"
         style={{ background: ORANGE }}>
-        <Icon size={28} />
+        <Icon size={22} />
       </div>
-      <p className="text-4xl font-black mb-1">
+      <p className="text-2xl sm:text-4xl font-black mb-1">
         {end >= 1000 ? display : count}{suffix}
       </p>
-      <p className="text-sm font-semibold opacity-80">+ {label}</p>
+      <p className="text-xs sm:text-sm font-semibold opacity-80">+ {label}</p>
     </div>
   )
 }
@@ -328,7 +328,7 @@ function Hero({ onOpen }: { onOpen: () => void }) {
   const slide = SLIDES[current]
 
   return (
-    <section className="relative overflow-hidden" style={{ minHeight: 580 }}>
+    <section className="relative overflow-hidden min-h-[420px] sm:min-h-[500px] lg:min-h-[580px]">
 
       {/* ── Crossfading background images — full bleed ── */}
       {SLIDES.map((s, i) => (
@@ -347,6 +347,10 @@ function Hero({ onOpen }: { onOpen: () => void }) {
           style={{ background: s.overlay, opacity: i === current ? 1 : 0 }} />
       ))}
 
+      {/* Extra mobile overlay — ensures text is always readable on small screens */}
+      <div className="lg:hidden absolute inset-0 z-[2]"
+        style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0.55) 100%)' }} />
+
       {/* Corner arrows — positioned on section, not inside max-w-7xl */}
       <button onClick={prev}
         className="hidden lg:flex absolute left-5 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full items-center justify-center text-white border-2 border-white/30 bg-black/25 hover:bg-black/45 transition-all">
@@ -358,70 +362,68 @@ function Hero({ onOpen }: { onOpen: () => void }) {
       </button>
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 relative z-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-14 lg:py-20 relative z-10">
 
         {/* Slide text — fade + lift transition */}
-        <div className="max-w-xl transition-all duration-400"
+        <div className="max-w-lg lg:max-w-xl transition-all duration-400"
           style={{ opacity: textVisible ? 1 : 0, transform: textVisible ? 'translateY(0)' : 'translateY(10px)' }}>
 
-          <span className="inline-block text-xs font-bold uppercase tracking-widest mb-5 px-3 py-1 rounded-full border"
+          <span className="inline-block text-[10px] sm:text-xs font-bold uppercase tracking-widest mb-3 sm:mb-5 px-3 py-1 rounded-full border"
             style={{ color: ORANGE, borderColor: 'rgba(249,115,22,0.4)' }}>
             {slide.badge}
           </span>
 
-          <h1 className="text-4xl sm:text-5xl lg:text-[52px] font-black leading-[1.08] mb-6"
-            style={{ color: slide.darkText ? '#1a1a1a' : '#ffffff' }}>
+          <h1 className="text-3xl sm:text-4xl lg:text-[50px] font-black leading-[1.1] mb-3 sm:mb-5"
+            style={{ color: '#ffffff' }}>
             {slide.line1}<br />
             {slide.line2pre}
             <span style={{ color: ORANGE }}>{slide.highlight}</span>
             {slide.line2post}
           </h1>
 
-          <p className="text-sm sm:text-base leading-relaxed mb-9 max-w-md"
-            style={{ color: slide.darkText ? '#374151' : '#D1D5DB' }}>
+          <p className="text-xs sm:text-sm lg:text-base leading-relaxed mb-6 sm:mb-8 max-w-sm sm:max-w-md text-gray-200">
             {slide.sub}
           </p>
 
-          <div className="flex flex-wrap gap-4">
+          <div className="flex flex-wrap gap-3">
             <button onClick={() => user ? navigate('/dashboard') : onOpen()}
-              className="flex items-center gap-2 px-6 py-3 rounded-lg text-white text-sm font-bold hover:opacity-90 transition-opacity shadow-lg"
+              className="flex items-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg text-white text-xs sm:text-sm font-bold hover:opacity-90 transition-opacity shadow-lg"
               style={{ background: ORANGE }}>
-              GET STARTED <ArrowRight size={15} />
+              GET STARTED <ArrowRight size={14} />
             </button>
             <button onClick={() => document.getElementById('modules')?.scrollIntoView({ behavior: 'smooth' })}
-              className="flex items-center gap-2 px-6 py-3 rounded-lg border-2 border-white/35 text-white text-sm font-bold hover:bg-white/10 transition-colors">
-              LEARN MORE <ArrowRight size={15} />
+              className="flex items-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg border-2 border-white/50 text-white text-xs sm:text-sm font-bold hover:bg-white/10 transition-colors">
+              LEARN MORE <ArrowRight size={14} />
             </button>
           </div>
 
           {/* Slide dots */}
-          <div className="flex gap-2 mt-10">
+          <div className="flex gap-2 mt-6 sm:mt-10">
             {SLIDES.map((_, i) => (
               <button key={i} onClick={() => goTo(i)}
-                className="h-2 rounded-full transition-all duration-300"
-                style={{ width: i === current ? 28 : 8, background: i === current ? ORANGE : 'rgba(255,255,255,0.35)' }} />
+                className="h-1.5 sm:h-2 rounded-full transition-all duration-300"
+                style={{ width: i === current ? 24 : 7, background: i === current ? ORANGE : 'rgba(255,255,255,0.45)' }} />
             ))}
           </div>
         </div>
       </div>
 
       {/* ── Floating feature cards ── */}
-      <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 pb-0">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {FEATURES.map(({ num, icon: Icon, title, desc }, idx) => (
+      <div className="relative z-20 max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 -mt-6 pb-0">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          {FEATURES.map(({ icon: Icon, title, desc }, idx) => (
             <div key={title}
-              className="bg-white rounded-xl shadow-xl p-5 border border-gray-100 hover:shadow-2xl hover:-translate-y-1 transition-all duration-200"
+              className="bg-white rounded-xl shadow-xl p-4 sm:p-5 border border-gray-100 hover:shadow-2xl hover:-translate-y-1 transition-all duration-200"
               style={{ transitionDelay: `${idx * 60}ms` }}>
-              <div className="flex items-center gap-3 mb-3">
-                {/* Gradient icon badge */}
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center text-white shrink-0 shadow-sm"
+              {/* Icon + Title side by side */}
+              <div className="flex items-center gap-2.5 mb-2.5">
+                <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center text-white shrink-0 shadow-sm"
                   style={{ background: `linear-gradient(135deg, ${TEAL} 0%, #2D9E95 100%)` }}>
-                  <Icon size={20} />
+                  <Icon size={18} />
                 </div>
-                <span className="text-3xl font-black" style={{ color: '#E5E7EB' }}>{num}</span>
+                <h3 className="font-bold text-gray-900 text-xs sm:text-sm leading-snug">{title}</h3>
               </div>
-              <h3 className="font-bold text-gray-900 text-sm mb-1.5">{title}</h3>
-              <p className="text-gray-500 text-xs leading-relaxed">{desc}</p>
+              <p className="text-gray-500 text-[11px] sm:text-xs leading-relaxed">{desc}</p>
             </div>
           ))}
         </div>
@@ -439,28 +441,27 @@ function About({ onOpen }: { onOpen: () => void }) {
   const { ref, inView } = useInView()
 
   return (
-    <section id="resources" className="bg-white py-24">
+    <section id="resources" className="bg-white py-14 sm:py-20 lg:py-24">
       <div ref={ref} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16 items-center">
 
           {/* Left — real image collage */}
-          <div className={`relative transition-all duration-700 ${inView ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10'}`}>
-            <div className="grid grid-cols-2 gap-3">
+          <div className={`relative pb-8 sm:pb-10 lg:pb-0 transition-all duration-700 ${inView ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-10'}`}>
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
               {ABOUT_IMGS.map(({ src, label }) => (
                 <div key={label} className="rounded-xl overflow-hidden aspect-[4/3] relative shadow-md group">
                   <img src={src} alt={label}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                  {/* label overlay */}
                   <div className="absolute inset-0 flex items-end"
                     style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 60%)' }}>
-                    <p className="text-white text-xs font-bold px-3 py-2">{label}</p>
+                    <p className="text-white text-[10px] sm:text-xs font-bold px-2 sm:px-3 py-1.5 sm:py-2">{label}</p>
                   </div>
                 </div>
               ))}
             </div>
 
             {/* Floating badge */}
-            <div className="absolute -bottom-5 left-6 rounded-xl shadow-2xl px-5 py-4 flex items-center gap-3 bg-white border border-gray-100">
+            <div className="absolute bottom-0 left-4 sm:left-6 rounded-xl shadow-2xl px-4 sm:px-5 py-3 sm:py-4 flex items-center gap-2 sm:gap-3 bg-white border border-gray-100">
               <div className="w-12 h-12 rounded-full flex items-center justify-center text-white shrink-0 shadow-sm"
                 style={{ background: ORANGE }}>
                 <Trophy size={22} />
@@ -539,9 +540,9 @@ function StatsBanner() {
   const { ref, inView } = useInView()
 
   return (
-    <section style={{ background: TEAL }} className="py-16">
+    <section style={{ background: TEAL }} className="py-10 sm:py-14 lg:py-16">
       <div ref={ref} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
           {STATS.map(s => <StatItem key={s.label} {...s} active={inView} />)}
         </div>
       </div>
