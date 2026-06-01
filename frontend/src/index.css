@@ -1,0 +1,150 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Base resets ─────────────────────────────────────────── */
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html {
+    font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    scroll-behavior: smooth;
+  }
+
+  body { margin: 0; background: #f8fafc; }
+  .dark body { background: #0f1117; }
+
+  #root { min-height: 100svh; display: flex; flex-direction: column; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 99px; }
+  .dark ::-webkit-scrollbar-thumb { background: #374151; }
+  ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+
+  /* Selection */
+  ::selection { background: rgba(79, 70, 229, 0.15); color: inherit; }
+
+  h1, h2, h3, h4, h5, h6 { font-weight: 600; letter-spacing: -0.02em; }
+  p { margin: 0; }
+  a { color: inherit; text-decoration: none; }
+}
+
+/* ── Components ──────────────────────────────────────────── */
+@layer components {
+
+  /* Card */
+  .card {
+    @apply bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 shadow-card transition-all duration-200;
+  }
+  .card:hover { @apply shadow-card-md; }
+
+  .card-interactive {
+    @apply card cursor-pointer hover:-translate-y-0.5 active:translate-y-0;
+  }
+
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none select-none;
+  }
+  .btn-sm  { @apply btn text-xs px-3 py-1.5; }
+  .btn-md  { @apply btn text-sm px-4 py-2.5; }
+  .btn-lg  { @apply btn text-base px-6 py-3; }
+
+  .btn-primary  { @apply btn-md bg-gradient-brand text-white hover:opacity-90 shadow-glow-sm; }
+  .btn-outline  { @apply btn-md border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800; }
+  .btn-ghost    { @apply btn-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800; }
+  .btn-danger   { @apply btn-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/30; }
+
+  /* Form inputs */
+  .input {
+    @apply w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700
+           bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 text-sm
+           placeholder-gray-400 dark:placeholder-gray-500
+           focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/60
+           transition-all duration-200;
+  }
+
+  .label { @apply block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5; }
+
+  .select {
+    @apply input cursor-pointer appearance-none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.25rem;
+    padding-right: 2.25rem;
+  }
+
+  /* Badge */
+  .badge { @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold; }
+  .badge-primary { @apply badge bg-primary/10 text-primary dark:bg-primary/20; }
+  .badge-green   { @apply badge bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-400; }
+  .badge-yellow  { @apply badge bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400; }
+  .badge-red     { @apply badge bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400; }
+  .badge-gray    { @apply badge bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400; }
+
+  /* Page header */
+  .page-header { @apply mb-6; }
+  .page-title  { @apply text-2xl font-bold text-gray-900 dark:text-white; }
+  .page-sub    { @apply text-sm text-gray-500 dark:text-gray-400 mt-1; }
+
+  /* Skeleton */
+  .skeleton {
+    @apply rounded-xl bg-gradient-to-r from-gray-100 via-gray-200 to-gray-100
+           dark:from-gray-800 dark:via-gray-700 dark:to-gray-800
+           bg-[length:200%_100%] animate-shimmer;
+  }
+
+  /* Stat card */
+  .stat-card {
+    @apply card p-5 flex items-center gap-4;
+  }
+  .stat-icon {
+    @apply w-12 h-12 rounded-2xl flex items-center justify-center shrink-0;
+  }
+
+  /* Tab group */
+  .tabs { @apply flex gap-1 bg-gray-100 dark:bg-gray-800/80 rounded-2xl p-1; }
+  .tab  {
+    @apply px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 text-gray-500 dark:text-gray-400
+           hover:text-gray-700 dark:hover:text-gray-200;
+  }
+  .tab-active { @apply tab bg-white dark:bg-gray-700 text-primary dark:text-primary shadow-sm; }
+
+  /* Empty state */
+  .empty-state { @apply flex flex-col items-center justify-center py-16 text-center; }
+  .empty-icon  { @apply w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 bg-gray-100 dark:bg-gray-800 text-gray-400; }
+  .empty-title { @apply text-base font-semibold text-gray-700 dark:text-gray-300 mt-1; }
+  .empty-sub   { @apply text-sm text-gray-400 mt-1 max-w-xs mx-auto; }
+
+  /* Section title */
+  .section-title { @apply text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2; }
+}
+
+/* ── 3D Flip card ─────────────────────────────────────────── */
+.flip-card { perspective: 1000px; }
+.flip-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.flip-card.flipped .flip-card-inner { transform: rotateY(180deg); }
+.flip-card-front, .flip-card-back {
+  position: absolute; inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.flip-card-back { transform: rotateY(180deg); }
+
+/* ── Mobile bottom nav safe area ─────────────────────────── */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .mobile-nav { padding-bottom: max(0.5rem, env(safe-area-inset-bottom)); }
+}
