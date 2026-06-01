@@ -82,36 +82,41 @@ const SLIDES = [
     line1: 'Start Your Beautiful',
     line2pre: 'And ', highlight: 'Bright', line2post: ' Future',
     sub: "Pakistan's most comprehensive CSS/PMS preparation platform. Practice MCQs, browse past papers, find study partners, and get expert essay feedback — all in one place.",
-    img: '/slider/slide1.jpg',
+    img: '/slider/slide1.png',
     alt: 'CSS/PMS aspirant student',
-    overlay: 'linear-gradient(100deg, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.45) 50%, transparent 75%)',
+    bgPos: '60% center',
+    overlay: 'linear-gradient(95deg, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.50) 42%, rgba(0,0,0,0.10) 62%, transparent 78%)',
   },
   {
     badge: '✦ YOUR COMPLETE STUDY HUB',
     line1: 'All Your Resources,',
     line2pre: '', highlight: 'One Platform', line2post: '',
     sub: 'Past papers, MCQ banks, premium notes, essay writing and study partners — everything a CSS/PMS aspirant needs, completely free.',
-    img: '/slider/slide2.jpg',
+    img: '/slider/slide2.png',
     alt: 'Student with books',
-    overlay: 'linear-gradient(100deg, rgba(29,102,96,0.90) 0%, rgba(29,102,96,0.72) 50%, rgba(29,102,96,0.08) 75%)',
+    bgPos: '55% center',
+    overlay: 'linear-gradient(95deg, rgba(255,255,255,0.92) 0%, rgba(255,255,255,0.78) 42%, rgba(255,255,255,0.15) 62%, transparent 78%)',
+    darkText: true,
   },
   {
     badge: '✦ PRACTICE MAKES PERFECT',
     line1: 'Master Every',
     line2pre: 'CSS/PMS ', highlight: 'Subject', line2post: '',
     sub: '5000+ MCQs, 8 years of past papers, and instant scoring to keep your CSS/PMS preparation sharp and on track.',
-    img: '/slider/slide3.jpg',
+    img: '/slider/slide3.png',
     alt: 'Confident student ready for exams',
-    overlay: 'linear-gradient(100deg, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.42) 50%, transparent 75%)',
+    bgPos: '58% center',
+    overlay: 'linear-gradient(95deg, rgba(100,0,0,0.80) 0%, rgba(100,0,0,0.55) 42%, rgba(100,0,0,0.12) 62%, transparent 78%)',
   },
   {
     badge: '✦ STUDY SMART · ACHIEVE MORE',
     line1: 'Your CSS/PMS',
     line2pre: 'Success ', highlight: 'Starts Here', line2post: '',
     sub: 'Join thousands of aspirants preparing smarter with personalised study plans, partner matching, and expert essay feedback.',
-    img: '/slider/slide4.jpg',
+    img: '/slider/slide4.png',
     alt: 'Student pointing to success',
-    overlay: 'linear-gradient(100deg, rgba(0,40,30,0.72) 0%, rgba(0,40,30,0.50) 50%, transparent 75%)',
+    bgPos: '55% center',
+    overlay: 'linear-gradient(95deg, rgba(0,50,30,0.78) 0%, rgba(0,50,30,0.52) 42%, rgba(0,50,30,0.10) 62%, transparent 78%)',
   },
 ]
 
@@ -323,67 +328,57 @@ function Hero({ onOpen }: { onOpen: () => void }) {
   const slide = SLIDES[current]
 
   return (
-    <section className="relative overflow-hidden" style={{ minHeight: 560 }}>
+    <section className="relative overflow-hidden" style={{ minHeight: 580 }}>
 
-      {/* ── Crossfading background images ── */}
+      {/* ── Crossfading background images — full bleed ── */}
       {SLIDES.map((s, i) => (
         <div key={i} className="absolute inset-0 transition-opacity duration-700"
           style={{
             backgroundImage: `url(${s.img})`,
             backgroundSize: 'cover',
-            backgroundPosition: 'center',
+            backgroundPosition: s.bgPos ?? 'center center',
             opacity: i === current ? 1 : 0,
           }} />
       ))}
 
-      {/* Per-slide overlay — crossfades with slide */}
+      {/* Per-slide left-side overlay — keeps text readable, fades to transparent so student shows */}
       {SLIDES.map((s, i) => (
         <div key={i} className="absolute inset-0 z-[1] transition-opacity duration-700"
           style={{ background: s.overlay, opacity: i === current ? 1 : 0 }} />
       ))}
 
-      {/* Frosted image panel — right side */}
-      <div className="absolute right-0 top-0 bottom-0 w-[44%] z-[2] hidden lg:block overflow-hidden">
-        {SLIDES.map((s, i) => (
-          <img key={i} src={s.img} alt={s.alt}
-            className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700"
-            style={{ opacity: i === current ? 1 : 0 }} />
-        ))}
-        {/* left-side fade so text doesn't clash with image */}
-        <div className="absolute inset-0"
-          style={{ background: 'linear-gradient(to right, rgba(8,25,24,0.85) 0%, rgba(8,25,24,0.3) 30%, transparent 70%)' }} />
-      </div>
+      {/* Corner arrows — positioned on section, not inside max-w-7xl */}
+      <button onClick={prev}
+        className="hidden lg:flex absolute left-5 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full items-center justify-center text-white border-2 border-white/30 bg-black/25 hover:bg-black/45 transition-all">
+        <ChevronLeft size={24} />
+      </button>
+      <button onClick={next}
+        className="hidden lg:flex absolute right-5 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full items-center justify-center text-white border-2 border-white/30 bg-black/25 hover:bg-black/45 transition-all">
+        <ChevronRight size={24} />
+      </button>
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 relative z-10">
-
-        {/* Arrows */}
-        <button onClick={prev}
-          className="hidden lg:flex absolute left-2 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full items-center justify-center text-white border border-white/25 bg-white/10 hover:bg-white/20 transition-all">
-          <ChevronLeft size={22} />
-        </button>
-        <button onClick={next}
-          className="hidden lg:flex absolute right-[calc(44%+8px)] top-1/2 -translate-y-1/2 w-11 h-11 rounded-full items-center justify-center text-white border border-white/25 bg-white/10 hover:bg-white/20 transition-all">
-          <ChevronRight size={22} />
-        </button>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 relative z-10">
 
         {/* Slide text — fade + lift transition */}
         <div className="max-w-xl transition-all duration-400"
           style={{ opacity: textVisible ? 1 : 0, transform: textVisible ? 'translateY(0)' : 'translateY(10px)' }}>
 
-          <span className="inline-block text-xs font-bold uppercase tracking-widest mb-5 px-3 py-1 rounded-full border border-orange-400/40"
-            style={{ color: ORANGE }}>
+          <span className="inline-block text-xs font-bold uppercase tracking-widest mb-5 px-3 py-1 rounded-full border"
+            style={{ color: ORANGE, borderColor: 'rgba(249,115,22,0.4)' }}>
             {slide.badge}
           </span>
 
-          <h1 className="text-4xl sm:text-5xl lg:text-[52px] font-black text-white leading-[1.08] mb-6">
+          <h1 className="text-4xl sm:text-5xl lg:text-[52px] font-black leading-[1.08] mb-6"
+            style={{ color: slide.darkText ? '#1a1a1a' : '#ffffff' }}>
             {slide.line1}<br />
             {slide.line2pre}
             <span style={{ color: ORANGE }}>{slide.highlight}</span>
             {slide.line2post}
           </h1>
 
-          <p className="text-gray-300 text-sm sm:text-base leading-relaxed mb-9 max-w-md">
+          <p className="text-sm sm:text-base leading-relaxed mb-9 max-w-md"
+            style={{ color: slide.darkText ? '#374151' : '#D1D5DB' }}>
             {slide.sub}
           </p>
 
