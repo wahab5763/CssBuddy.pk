@@ -177,7 +177,7 @@ function ChatPanel({ conn, userId }: { conn: Connection; userId: number }) {
         <Avatar name={partner.name} />
         <div className="flex-1 min-w-0">
           <p className="font-bold text-gray-900 dark:text-white text-sm">{partner.name}</p>
-          <p className="text-xs" style={{ color: TEAL }}>● Connected{partner.city ? ` · ${partner.city}` : ''}</p>
+          <p className="text-xs text-green-500 font-medium">● Connected{partner.city ? ` · ${partner.city}` : ''}</p>
         </div>
         {partner.shared_subjects.length > 0 && (
           <div className="hidden sm:flex gap-1 flex-wrap justify-end max-w-[200px]">
@@ -215,10 +215,10 @@ function ChatPanel({ conn, userId }: { conn: Connection; userId: number }) {
               )}
               <div className={cn(
                 'max-w-[70%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed',
-                isMe
-                  ? 'text-white rounded-tr-sm'
-                  : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 rounded-tl-sm',
-              )} style={isMe ? { background: TEAL } : {}}>
+                isMe ? 'text-white rounded-tr-sm' : 'rounded-tl-sm',
+              )} style={isMe
+                  ? { background: ORANGE }
+                  : { background: '#E8F4F3', color: '#0f3d39' }}>
                 {msg.content}
               </div>
               <p className="text-[10px] text-gray-400 mt-0.5 mx-1">{fmtTime(msg.sent_at)}</p>

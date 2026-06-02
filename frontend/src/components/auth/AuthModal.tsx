@@ -7,7 +7,7 @@ import { useAuthStore } from '@/store/authStore'
 import { apiClient } from '@/api/client'
 import { subjectsApi } from '@/api/subjects'
 import type { User } from '@/types'
-import { X, LogIn, UserPlus, Eye, EyeOff, GraduationCap, BookOpen, ChevronRight, ChevronLeft } from 'lucide-react'
+import { X, LogIn, UserPlus, Eye, EyeOff, GraduationCap, BookOpen, ChevronRight, ChevronLeft, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const loginSchema = z.object({
@@ -58,6 +58,7 @@ export function AuthModal({ defaultOpen = false, onClose }: AuthModalProps) {
   const [password, setPassword] = useState('')
   const [selectedOptionals, setSelectedOptionals] = useState<string[]>([])
   const [subjectSearch, setSubjectSearch] = useState('')
+  const [registering, setRegistering] = useState(false)
   const setAuth = useAuthStore((s) => s.setAuth)
 
   const { data: subjectList } = useQuery({
@@ -109,6 +110,7 @@ export function AuthModal({ defaultOpen = false, onClose }: AuthModalProps) {
 
   const onRegisterFinish = async () => {
     setError('')
+    setRegistering(true)
     const data = registerForm.getValues()
     try {
       const res = await apiClient.post<{ access_token: string; user: User }>('/api/auth/register', {
@@ -125,6 +127,8 @@ export function AuthModal({ defaultOpen = false, onClose }: AuthModalProps) {
     } catch (e: unknown) {
       const err = e as { response?: { data?: { detail?: string } } }
       setError(err.response?.data?.detail || 'Registration failed. Try again.')
+    } finally {
+      setRegistering(false)
     }
   }
 
@@ -202,8 +206,11 @@ export function AuthModal({ defaultOpen = false, onClose }: AuthModalProps) {
                 <label className="label">Password</label>
                 <PasswordInput value={loginForm.watch('password') || ''} onChange={(v) => loginForm.setValue('password', v)} />
               </div>
-              <button type="submit" disabled={loginForm.formState.isSubmitting} className="btn-primary w-full py-3 text-base mt-1">
-                {loginForm.formState.isSubmitting ? 'Signing in…' : 'Sign In'}
+              <button type="submit" disabled={loginForm.formState.isSubmitting}
+                className="btn-primary w-full py-3 text-base mt-1 gap-2">
+                {loginForm.formState.isSubmitting
+                  ? <><Loader2 size={18} className="animate-spin" /> Signing in…</>
+                  : <><LogIn size={16} /> Sign In</>}
               </button>
             </form>
           )}
@@ -303,8 +310,11 @@ export function AuthModal({ defaultOpen = false, onClose }: AuthModalProps) {
                 <button type="button" onClick={() => setRegisterStep(1)} className="btn-outline gap-1.5">
                   <ChevronLeft size={15} /> Back
                 </button>
-                <button type="button" onClick={onRegisterFinish} className="btn-primary flex-1 py-3 gap-2">
-                  <BookOpen size={15} /> Create Account
+                <button type="button" onClick={onRegisterFinish} disabled={registering}
+                  className="btn-primary flex-1 py-3 gap-2">
+                  {registering
+                    ? <><Loader2 size={16} className="animate-spin" /> Creating…</>
+                    : <><BookOpen size={15} /> Create Account</>}
                 </button>
               </div>
             </div>
