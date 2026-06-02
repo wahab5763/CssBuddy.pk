@@ -1,5 +1,10 @@
 import { apiClient } from './client'
 
+export function chatWsUrl(connId: number, token: string): string {
+  const base = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/^http/, 'ws')
+  return `${base}/api/partner/messages/${connId}/ws?token=${token}`
+}
+
 export const partnerApi = {
   getPreferences: () => apiClient.get('/api/partner/preferences'),
   upsertPreferences: (data: Record<string, unknown>) => apiClient.put('/api/partner/preferences', data),

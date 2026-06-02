@@ -4,21 +4,65 @@ Study Partner API
 Discovery is sorted by shared optional subjects so aspirants with common
 subjects appear at the top.  Groups are virtual — a "group" is simply the
 set of users who chose a particular optional.
+Real-time 1-on-1 messaging is handled via WebSocket at /messages/{conn_id}/ws.
 """
 import json
+from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
-from app.core.database import get_db
+from app.core.database import SessionLocal, get_db
 from app.core.deps import get_current_user
+from app.core.security import decode_access_token
 from app.models.partner import PartnerConnection, PartnerMessage, PartnerPreference
 from app.models.user import OptionalSubject, User, user_optionals
 from app.schemas.common import Msg
 from app.schemas.partner import ConnectRequest, PartnerPrefUpsert, SendMessageRequest
 
 router = APIRouter(prefix="/partner", tags=["partner"])
+
+
+# ── Real-time conversation manager ─────────────────────────────────────────────
+
+class ConversationManager:
+    """Manages WebSocket connections for 1-on-1 chats, keyed by connection_id."""
+
+    def __init__(self) -> None:
+        self.rooms: dict[int, list[WebSocket]] = {}
+
+    async def connect(self, conn_id: int, ws: WebSocket) -> None:
+        await ws.accept()
+        self.rooms.setdefault(conn_id, []).append(ws)
+
+    def disconnect(self, conn_id: int, ws: WebSocket) -> None:
+        room = self.rooms.get(conn_id, [])
+        if ws in room:
+            room.remove(ws)
+
+    async def send_all(self, conn_id: int, payload: dict) -> None:
+        """Broadcast to both sides of the conversation."""
+        dead: list[WebSocket] = []
+        for ws in list(self.rooms.get(conn_id, [])):
+            try:
+                await ws.send_json(payload)
+            except Exception:
+                dead.append(ws)
+        for ws in dead:
+            self.disconnect(conn_id, ws)
+
+    async def send_others(self, conn_id: int, payload: dict, exclude: WebSocket) -> None:
+        """Broadcast only to the other participant (for typing indicator)."""
+        for ws in list(self.rooms.get(conn_id, [])):
+            if ws is not exclude:
+                try:
+                    await ws.send_json(payload)
+                except Exception:
+                    self.disconnect(conn_id, ws)
+
+
+conv_manager = ConversationManager()
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -321,6 +365,18 @@ def sent_requests(user: User = Depends(get_current_user), db: Session = Depends(
 
 # ── Messages ───────────────────────────────────────────────────────────────────
 
+def _msg_dict(m: PartnerMessage) -> dict:
+    return {
+        "id": m.id,
+        "connection_id": m.connection_id,
+        "sender_id": m.sender_id,
+        "sender_name": m.sender.name if m.sender else "Deleted User",
+        "content": m.content,
+        "is_read": m.is_read,
+        "sent_at": m.sent_at.isoformat(),
+    }
+
+
 @router.get("/messages/{conn_id}")
 def get_messages(conn_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     conn = db.get(PartnerConnection, conn_id)
@@ -332,15 +388,11 @@ def get_messages(conn_id: int, user: User = Depends(get_current_user), db: Sessi
         .order_by(PartnerMessage.sent_at)
         .all()
     )
-    return [
-        {"id": m.id, "sender_id": m.sender_id, "content": m.content,
-         "is_read": m.is_read, "sent_at": m.sent_at.isoformat()}
-        for m in msgs
-    ]
+    return [_msg_dict(m) for m in msgs]
 
 
 @router.post("/messages/{conn_id}", status_code=201)
-def send_message(
+async def send_message(
     conn_id: int,
     body: SendMessageRequest,
     user: User = Depends(get_current_user),
@@ -354,7 +406,11 @@ def send_message(
     msg = PartnerMessage(connection_id=conn_id, sender_id=user.id, content=body.content)
     db.add(msg)
     db.commit()
-    return {"id": msg.id, "content": msg.content, "sent_at": msg.sent_at.isoformat()}
+    db.refresh(msg)
+    out = _msg_dict(msg)
+    # Broadcast to any WebSocket clients in this conversation
+    await conv_manager.send_all(conn_id, {"type": "message", **out})
+    return out
 
 
 @router.patch("/messages/{conn_id}/read", response_model=Msg)
@@ -366,3 +422,77 @@ def mark_read(conn_id: int, user: User = Depends(get_current_user), db: Session 
     ).update({"is_read": True})
     db.commit()
     return Msg(detail="Marked as read")
+
+
+# ── WebSocket — real-time 1-on-1 chat ─────────────────────────────────────────
+
+@router.websocket("/messages/{conn_id}/ws")
+async def chat_ws(conn_id: int, websocket: WebSocket, token: Optional[str] = None):
+    # Authenticate via query-param token (browsers can't set WS headers)
+    if not token:
+        await websocket.close(code=4001)
+        return
+    payload = decode_access_token(token)
+    if not payload:
+        await websocket.close(code=4001)
+        return
+
+    user_id = int(payload["sub"])
+
+    db_check = SessionLocal()
+    try:
+        conn = db_check.get(PartnerConnection, conn_id)
+        if not conn or conn.status != "accepted":
+            await websocket.close(code=4003)
+            return
+        if conn.requester_id != user_id and conn.receiver_id != user_id:
+            await websocket.close(code=4003)
+            return
+        user_obj = db_check.get(User, user_id)
+        user_name = user_obj.name if user_obj else "User"
+    finally:
+        db_check.close()
+
+    await conv_manager.connect(conn_id, websocket)
+
+    try:
+        while True:
+            data = await websocket.receive_json()
+            msg_type = data.get("type", "message")
+
+            if msg_type == "typing":
+                # Send typing indicator only to the OTHER participant
+                await conv_manager.send_others(conn_id, {
+                    "type": "typing",
+                    "user_id": user_id,
+                    "user_name": user_name,
+                }, exclude=websocket)
+            else:
+                content = str(data.get("content", "")).strip()
+                if not content:
+                    continue
+                # Persist in a fresh session
+                db2 = SessionLocal()
+                try:
+                    msg = PartnerMessage(connection_id=conn_id, sender_id=user_id, content=content)
+                    db2.add(msg)
+                    db2.commit()
+                    db2.refresh(msg)
+                    out = {
+                        "id": msg.id,
+                        "connection_id": conn_id,
+                        "sender_id": user_id,
+                        "sender_name": user_name,
+                        "content": msg.content,
+                        "is_read": False,
+                        "sent_at": msg.sent_at.isoformat(),
+                    }
+                finally:
+                    db2.close()
+                # Echo to both sides so sender sees confirmation too
+                await conv_manager.send_all(conn_id, {"type": "message", **out})
+
+    except WebSocketDisconnect:
+        conv_manager.disconnect(conn_id, websocket)
+    except Exception:
+        conv_manager.disconnect(conn_id, websocket)
