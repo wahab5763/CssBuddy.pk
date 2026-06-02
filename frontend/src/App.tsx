@@ -10,6 +10,7 @@ import { PastPapers } from '@/pages/PastPapers'
 import { News } from '@/pages/News'
 import { PremiumNotes } from '@/pages/PremiumNotes'
 import { StudyPartner } from '@/pages/StudyPartner'
+import { StudyGroups } from '@/pages/StudyGroups'
 import { EssayWriting } from '@/pages/EssayWriting'
 import { AdminPanel } from '@/pages/AdminPanel'
 import { usePersistentSession } from '@/hooks/usePersistentSession'
@@ -38,6 +39,7 @@ function AppRoutes() {
         <Route path="/news" element={<News />} />
         <Route path="/premium" element={<PremiumNotes />} />
         <Route path="/partner" element={<StudyPartner />} />
+        <Route path="/study-groups" element={<StudyGroups />} />
         <Route path="/essay" element={<EssayWriting />} />
         <Route path="/admin" element={<AdminPanel />} />
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -129,7 +129,10 @@ def update_profile(data: UpdateProfileRequest, user: User = Depends(get_current_
 
 @router.patch("/me/optionals", response_model=UserOut)
 def update_optionals(data: UpdateOptionalsRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.api.study_groups import sync_group_memberships
     auth_service.update_optionals(db, user, data.optional_subjects)
+    db.refresh(user)
+    sync_group_memberships(db, user)
     db.refresh(user)
     return _build_user_out(user)
 

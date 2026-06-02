@@ -13,15 +13,16 @@ const ORANGE = '#F97316'
 
 /* ── Nav items ───────────────────────────────────────────── */
 const NAV = [
-  { to: '/dashboard',   label: 'Home'           },
-  { to: '/study-plan',  label: 'Study Plan'      },
-  { to: '/practice',    label: 'Practice'        },
-  { to: '/books',       label: 'Books Market'    },
-  { to: '/past-papers', label: 'Past Papers'     },
-  { to: '/news',        label: 'News & Affairs'  },
-  { to: '/premium',     label: 'Premium Notes'   },
-  { to: '/partner',     label: 'Study Partner'   },
-  { to: '/essay',       label: 'Essay Writing'   },
+  { to: '/dashboard',     label: 'Home'           },
+  { to: '/study-plan',    label: 'Study Plan'      },
+  { to: '/practice',      label: 'Practice'        },
+  { to: '/books',         label: 'Books Market'    },
+  { to: '/past-papers',   label: 'Past Papers'     },
+  { to: '/news',          label: 'News & Affairs'  },
+  { to: '/premium',       label: 'Premium Notes'   },
+  { to: '/partner',       label: 'Study Partner'   },
+  { to: '/study-groups',  label: 'Study Groups'    },
+  { to: '/essay',         label: 'Essay Writing'   },
 ]
 
 interface TopbarProps { onMenuToggle: () => void; isMobileOpen: boolean }
@@ -122,11 +123,11 @@ export function Topbar({ onMenuToggle, isMobileOpen }: TopbarProps) {
         </Link>
 
         {/* ── Desktop nav links ─── */}
-        <nav className="hidden xl:flex items-center gap-0.5 flex-1 justify-center">
+        <nav className="hidden xl:flex items-center gap-0 flex-1 justify-center">
           {NAV.map(({ to, label }) => (
             <NavLink key={to} to={to}
               className={({ isActive }) => cn(
-                'px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-150',
+                'px-2 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-all duration-150',
                 isActive
                   ? 'text-white shadow-sm'
                   : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'

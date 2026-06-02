@@ -10,7 +10,7 @@ from app.core.database import SessionLocal
 from app.core.subjects import OPTIONAL_SUBJECTS
 from app.models import *  # noqa: F401,F403 — registers all models with SQLAlchemy
 from app.models.user import OptionalSubject
-from app.api import auth, dashboard, practice, books, pastpapers, news, premium, partner, essay, admin, studyplan, subjects
+from app.api import auth, dashboard, practice, books, pastpapers, news, premium, partner, essay, admin, studyplan, subjects, study_groups
 from app.services.file_service import ensure_dirs
 
 # Suppress uvicorn 401 log noise for expected unauthenticated refresh probes
@@ -42,6 +42,8 @@ def _seed_optional_subjects() -> None:
 async def lifespan(app: FastAPI):
     ensure_dirs()
     _seed_optional_subjects()
+    import asyncio
+    asyncio.create_task(study_groups._periodic_purge())
     yield
 
 
@@ -73,6 +75,7 @@ app.include_router(partner.router, prefix=prefix)
 app.include_router(essay.router, prefix=prefix)
 app.include_router(admin.router, prefix=prefix)
 app.include_router(studyplan.router, prefix=prefix)
+app.include_router(study_groups.router, prefix=prefix)
 
 
 @app.get("/health")
