@@ -54,9 +54,14 @@ function useChat(
   onMessage: (msg: ChatMessage) => void,
   onTyping: () => void,
 ) {
-  const wsRef = useRef<WebSocket | null>(null)
-  const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const wsRef     = useRef<WebSocket | null>(null)
+  const retryRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
   const activeRef = useRef(true)
+  // Refs keep latest callbacks without triggering reconnect
+  const msgRef  = useRef(onMessage)
+  const typeRef = useRef(onTyping)
+  useEffect(() => { msgRef.current  = onMessage })
+  useEffect(() => { typeRef.current = onTyping  })
 
   const connect = useCallback(() => {
     if (!connId || !token || !activeRef.current) return
@@ -65,15 +70,15 @@ function useChat(
     ws.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data)
-        if (data.type === 'message') onMessage(data as ChatMessage)
-        if (data.type === 'typing') onTyping()
+        if (data.type === 'message') msgRef.current(data as ChatMessage)
+        if (data.type === 'typing')  typeRef.current()
       } catch {}
     }
     ws.onclose = () => {
       if (activeRef.current) retryRef.current = setTimeout(connect, 3000)
     }
     wsRef.current = ws
-  }, [connId, token, onMessage, onTyping])
+  }, [connId, token]) // stable — only reconnects when conn/token change
 
   useEffect(() => {
     activeRef.current = true
@@ -98,43 +103,34 @@ function useChat(
 
 /* ── Chat panel (right side) ──────────────────────────────────── */
 function ChatPanel({ conn, userId }: { conn: Connection; userId: number }) {
-  const qc = useQueryClient()
+  const qc    = useQueryClient()
   const token = useAuthStore((s) => s.accessToken)
   const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [text, setText] = useState('')
-  const [typing, setTyping] = useState(false)
-  const [sending, setSending] = useState(false)
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const [text, setText]         = useState('')
+  const [typing, setTyping]     = useState(false)
+  const [sending, setSending]   = useState(false)
+  const bottomRef   = useRef<HTMLDivElement>(null)
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  /* Fetch history */
-  const { data: history = [] } = useQuery<ChatMessage[]>({
-    queryKey: ['chat-messages', conn.id],
-    queryFn: () => partnerApi.messages(conn.id).then((r) => r.data),
-  })
-
-  useEffect(() => { setMessages(history) }, [history])
-
-  /* Scroll to bottom on new messages */
+  // Fetch history once on mount — never automatically overwritten again
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
-
-  /* Mark read on open */
-  useEffect(() => {
+    partnerApi.messages(conn.id)
+      .then(r => setMessages(r.data))
+      .catch(() => {})
     partnerApi.markRead(conn.id).catch(() => {})
   }, [conn.id])
 
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+
   /* WS handlers */
   const handleIncoming = useCallback((msg: ChatMessage) => {
-    setMessages((prev) => {
-      if (prev.some((m) => m.id === msg.id)) return prev
-      return [...prev, msg]
-    })
+    // Skip our own echo — the HTTP POST path already added our message
+    if (Number(msg.sender_id) === Number(userId)) return
+    setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg])
     setTyping(false)
     partnerApi.markRead(conn.id).catch(() => {})
     qc.invalidateQueries({ queryKey: ['partner-connections'] })
-  }, [conn.id, qc])
+  }, [userId, conn.id, qc])
 
   const handleTyping = useCallback(() => {
     setTyping(true)
@@ -150,15 +146,22 @@ function ChatPanel({ conn, userId }: { conn: Connection; userId: number }) {
     if (!content || sending) return
     setSending(true)
     setText('')
-    const sent = sendWs({ type: 'message', content })
-    if (!sent) {
-      /* HTTP fallback */
-      try {
-        const res = await partnerApi.sendMessage(conn.id, content)
-        const msg = res.data as ChatMessage
-        setMessages((prev) => prev.some((m) => m.id === msg.id) ? prev : [...prev, msg])
-      } catch {}
+
+    // Optimistic: always green/right immediately
+    const tempId = -Date.now()
+    setMessages(prev => [...prev, {
+      id: tempId, connection_id: conn.id, sender_id: userId,
+      sender_name: '', content, sent_at: new Date().toISOString(), is_read: true,
+    }])
+
+    // HTTP POST — backend also broadcasts via WS to the partner
+    try {
+      const res = await partnerApi.sendMessage(conn.id, content)
+      setMessages(prev => prev.map(m => m.id === tempId ? (res.data as ChatMessage) : m))
+    } catch {
+      setMessages(prev => prev.filter(m => m.id !== tempId))
     }
+
     setSending(false)
   }
 
@@ -203,22 +206,21 @@ function ChatPanel({ conn, userId }: { conn: Connection; userId: number }) {
         )}
 
         {messages.map((msg, idx) => {
-          const isMe = msg.sender_id === userId
-          const prevMsg = messages[idx - 1]
-          const sameSender = prevMsg && prevMsg.sender_id === msg.sender_id
+          const isMe       = Number(msg.sender_id) === Number(userId)
+          const prevMsg    = messages[idx - 1]
+          const sameSender = prevMsg && Number(prevMsg.sender_id) === Number(msg.sender_id)
 
           return (
             <div key={msg.id} className={cn('flex flex-col', isMe ? 'items-end' : 'items-start')}>
-              {/* Show name only for first in a run from the other person */}
               {!isMe && !sameSender && (
                 <p className="text-[10px] font-semibold text-gray-400 mb-0.5 ml-1">{msg.sender_name}</p>
               )}
               <div className={cn(
                 'max-w-[70%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed',
-                isMe ? 'text-white rounded-tr-sm' : 'rounded-tl-sm',
-              )} style={isMe
-                  ? { background: ORANGE }
-                  : { background: '#E8F4F3', color: '#0f3d39' }}>
+                isMe
+                  ? 'bg-[#1D6660] text-white rounded-tr-sm'
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 rounded-tl-sm',
+              )}>
                 {msg.content}
               </div>
               <p className="text-[10px] text-gray-400 mt-0.5 mx-1">{fmtTime(msg.sent_at)}</p>

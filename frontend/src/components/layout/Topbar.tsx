@@ -21,7 +21,6 @@ const NAV = [
   { to: '/news',          label: 'News & Affairs'  },
   { to: '/premium',       label: 'Premium Notes'   },
   { to: '/partner',       label: 'Study Partner'   },
-  { to: '/messages',      label: 'Messages'        },
   { to: '/essay',         label: 'Essay Writing'   },
 ]
 

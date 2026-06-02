@@ -1,12 +1,15 @@
-import { useState } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { partnerApi } from '@/api/partner'
+import { partnerApi, chatWsUrl } from '@/api/partner'
 import { apiClient } from '@/api/client'
 import { useAuthStore } from '@/store/authStore'
 import { ProtectedRoute } from '@/components/common/ProtectedRoute'
-import { Users, MessageSquare, Clock, Send } from 'lucide-react'
-import type { Connection, Message, PartnerUser } from '@/types'
+import { Users, MessageSquare, Clock, Send, ArrowLeft, MessageCircle } from 'lucide-react'
+import type { PartnerUser } from '@/types'
 import { cn } from '@/lib/utils'
+
+const TEAL   = '#1D6660'
+const ORANGE = '#F97316'
 
 type Tab = 'discover' | 'requests' | 'messages'
 
@@ -237,111 +240,436 @@ function RequestsTab() {
   )
 }
 
-/* ── Messages Tab ───────────────────────────────────────────── */
-function MessagesTab() {
-  const user = useAuthStore((s) => s.user)
-  const [activeConn, setActiveConn] = useState<number | null>(null)
-  const [text, setText] = useState('')
-  const qc = useQueryClient()
+/* ── Live chat helpers ──────────────────────────────────────── */
+interface PChatMessage {
+  id: number; connection_id: number; sender_id: number; sender_name: string
+  content: string; sent_at: string; is_read: boolean
+  _mine?: true   // local-only flag: set on messages I sent this session
+}
 
-  const { data: connections = [] } = useQuery<Connection[]>({
-    queryKey: ['partner-connections'],
-    queryFn: () => partnerApi.connections().then((r) => r.data),
-  })
-  const { data: messages = [] } = useQuery<Message[]>({
-    queryKey: ['partner-messages', activeConn],
-    queryFn: () => partnerApi.messages(activeConn!).then((r) => r.data),
-    enabled: !!activeConn,
-    refetchInterval: 10000,
-  })
+interface PConn {
+  id: number; status: string; created_at: string
+  partner: { id: number; name: string; city: string | null; prep_level: string | null; exam_type: string | null; optional_subjects: string[]; shared_subjects: string[] }
+}
+
+function fmtTime(iso: string) {
+  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
+}
+function fmtDate(iso: string) {
+  const d = new Date(iso), now = new Date()
+  const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1)
+  if (d.toDateString() === now.toDateString()) return 'Today'
+  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday'
+  return d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })
+}
+function sameDay(a: string, b: string) {
+  return new Date(a).toDateString() === new Date(b).toDateString()
+}
+
+function useChatSocket(
+  connId: number | null,
+  token: string | null,
+  onMessage: (msg: PChatMessage) => void,
+  onTyping: () => void,
+) {
+  const wsRef     = useRef<WebSocket | null>(null)
+  const retryRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const activeRef = useRef(true)
+  // Refs keep latest callbacks without triggering reconnect
+  const msgRef  = useRef(onMessage)
+  const typeRef = useRef(onTyping)
+  useEffect(() => { msgRef.current  = onMessage })
+  useEffect(() => { typeRef.current = onTyping  })
+
+  const connect = useCallback(() => {
+    if (!connId || !token || !activeRef.current) return
+    const ws = new WebSocket(chatWsUrl(connId, token))
+    ws.onopen = () => { if (retryRef.current) { clearTimeout(retryRef.current); retryRef.current = null } }
+    ws.onmessage = (e) => {
+      try {
+        const data = JSON.parse(e.data)
+        if (data.type === 'message') msgRef.current(data as PChatMessage)
+        if (data.type === 'typing')  typeRef.current()
+      } catch {}
+    }
+    ws.onclose = () => { if (activeRef.current) retryRef.current = setTimeout(connect, 3000) }
+    wsRef.current = ws
+  }, [connId, token]) // stable — only reconnects when conn/token change
+
+  useEffect(() => {
+    activeRef.current = true
+    connect()
+    return () => {
+      activeRef.current = false
+      if (retryRef.current) clearTimeout(retryRef.current)
+      wsRef.current?.close()
+    }
+  }, [connect])
+
+  return useCallback((payload: object) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) { wsRef.current.send(JSON.stringify(payload)); return true }
+    return false
+  }, [])
+}
+
+function PartnerChatPanel({ conn }: { conn: PConn }) {
+  // Read userId directly from store — never rely on a potentially stale prop
+  const myUser  = useAuthStore((s) => s.user)
+  const myId    = myUser?.id ?? 0
+  const qc      = useQueryClient()
+  const token   = useAuthStore((s) => s.accessToken)
+  const [messages, setMessages] = useState<PChatMessage[]>([])
+  const [text, setText]         = useState('')
+  const [typing, setTyping]     = useState(false)
+  const [sending, setSending]   = useState(false)
+  const bottomRef   = useRef<HTMLDivElement>(null)
+  const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Fetch history once on mount
+  useEffect(() => {
+    partnerApi.messages(conn.id)
+      .then(r => setMessages(r.data as PChatMessage[]))
+      .catch(() => {})
+    partnerApi.markRead(conn.id).catch(() => {})
+  }, [conn.id])
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+
+  // Only receive messages from the OTHER person — skip our own WS echo
+  const handleIncoming = useCallback((msg: PChatMessage) => {
+    if (Number(msg.sender_id) === myId) return
+    setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg])
+    setTyping(false)
+    qc.invalidateQueries({ queryKey: ['partner-connections'] })
+  }, [myId, qc])
+
+  const handleTyping = useCallback(() => {
+    setTyping(true)
+    if (typingTimer.current) clearTimeout(typingTimer.current)
+    typingTimer.current = setTimeout(() => setTyping(false), 2500)
+  }, [])
+
+  const sendWs = useChatSocket(conn.id, token, handleIncoming, handleTyping)
 
   const send = async () => {
-    if (!text.trim() || !activeConn) return
-    await partnerApi.sendMessage(activeConn, text)
+    const content = text.trim()
+    if (!content || sending) return
+    setSending(true)
     setText('')
-    qc.invalidateQueries({ queryKey: ['partner-messages', activeConn] })
+
+    // Add immediately with _mine flag — guaranteed green regardless of any ID issue
+    const tempId = -Date.now()
+    setMessages(prev => [...prev, {
+      id: tempId, connection_id: conn.id, sender_id: myId,
+      sender_name: '', content, sent_at: new Date().toISOString(),
+      is_read: true, _mine: true,
+    }])
+
+    try {
+      const res = await partnerApi.sendMessage(conn.id, content)
+      const saved = { ...(res.data as PChatMessage), _mine: true as const }
+      setMessages(prev => prev.map(m => m.id === tempId ? saved : m))
+    } catch {
+      setMessages(prev => prev.filter(m => m.id !== tempId))
+    }
+    setSending(false)
   }
 
-  const activePartner = connections.find((c) => c.id === activeConn)?.partner
+  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
+    else sendWs({ type: 'typing' })
+  }
 
+  const p = conn.partner
   return (
-    <div className="flex gap-4 h-[520px]">
-      {/* Sidebar */}
-      <div className="w-56 shrink-0 card p-2 overflow-y-auto">
-        <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 px-2 py-1 mb-1">Connections ({connections.length})</p>
-        {connections.length === 0 ? (
-          <p className="text-xs text-gray-400 text-center py-6 px-2">Accept a request to start messaging</p>
-        ) : connections.map((c) => {
-          const shared = (c.partner as PartnerCardData).shared_subjects ?? []
-          return (
-            <button key={c.id} onClick={() => setActiveConn(c.id)}
-              className={cn('w-full text-left px-3 py-2.5 rounded-xl flex items-center gap-2.5 transition-colors', activeConn === c.id ? 'bg-primary text-white' : 'hover:bg-gray-100 dark:hover:bg-gray-800')}>
-              <Avatar name={c.partner.name} size="sm" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">{c.partner.name}</p>
-                {shared.length > 0 && (
-                  <p className={cn('text-[10px] truncate', activeConn === c.id ? 'text-white/70' : 'text-primary')}>{shared[0]}{shared.length > 1 ? ` +${shared.length - 1}` : ''}</p>
-                )}
-              </div>
-            </button>
-          )
-        })}
+    <div className="flex-1 flex flex-col rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm" style={{ background: 'white' }}>
+
+      {/* ── Header ── */}
+      <div className="flex items-center gap-3 px-5 py-3.5 shrink-0 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800">
+        {/* Avatar + online dot */}
+        <div className="relative shrink-0">
+          <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm"
+            style={{ background: `linear-gradient(135deg, ${TEAL}, #2D9E95)` }}>
+            {p.name[0].toUpperCase()}
+          </div>
+          <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 rounded-full border-2 border-white dark:border-gray-900" />
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <p className="font-bold text-gray-900 dark:text-white text-sm leading-tight">{p.name}</p>
+          <p className="text-[11px] text-green-500 font-medium mt-0.5">
+            Active now{p.city ? ` · ${p.city}` : ''}
+          </p>
+        </div>
+
+        {p.shared_subjects.length > 0 && (
+          <div className="hidden sm:flex gap-1.5 flex-wrap justify-end max-w-[200px]">
+            {p.shared_subjects.slice(0, 3).map((s) => (
+              <span key={s} className="text-[10px] font-semibold px-2 py-0.5 rounded-full text-white"
+                style={{ background: TEAL }}>{s}</span>
+            ))}
+            {p.shared_subjects.length > 3 && (
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500">
+                +{p.shared_subjects.length - 3}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
-      {/* Chat */}
-      {activeConn ? (
-        <div className="flex-1 card flex flex-col overflow-hidden">
-          <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 dark:border-gray-800 shrink-0">
-            {activePartner && <Avatar name={activePartner.name} size="sm" />}
-            <div className="flex-1">
-              <p className="font-semibold text-sm">{activePartner?.name}</p>
-              <p className="text-xs text-green-500">Connected</p>
+      {/* ── Messages area ── */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1"
+        style={{ background: '#f5f7f6' }}>
+
+        {messages.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-full gap-3 py-10">
+            <div className="w-16 h-16 rounded-full flex items-center justify-center"
+              style={{ background: `${TEAL}15` }}>
+              <MessageCircle size={28} style={{ color: TEAL }} />
             </div>
-            {/* Shared subjects in header */}
-            {activePartner && (activePartner as PartnerCardData).shared_subjects?.length > 0 && (
-              <div className="hidden sm:flex gap-1 flex-wrap justify-end max-w-[180px]">
-                {(activePartner as PartnerCardData).shared_subjects.map((s) => (
-                  <span key={s} className="badge-primary text-[10px]">{s}</span>
-                ))}
-              </div>
-            )}
+            <div className="text-center">
+              <p className="text-sm font-semibold text-gray-600 dark:text-gray-300">No messages yet</p>
+              <p className="text-xs text-gray-400 mt-1">Say hello to {p.name.split(' ')[0]}! 👋</p>
+            </div>
           </div>
+        )}
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {messages.length === 0 && (
-              <div className="flex items-center justify-center h-full">
-                <p className="text-sm text-gray-400 text-center px-4">No messages yet. Say hello! 👋</p>
-              </div>
-            )}
-            {messages.map((m: Message) => {
-              const isMe = m.sender_id === user?.id
-              return (
-                <div key={m.id} className={cn('flex', isMe ? 'justify-end' : 'justify-start')}>
-                  <div className={cn('max-w-[75%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed', isMe ? 'bg-gradient-brand text-white rounded-tr-sm' : 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 rounded-tl-sm')}>
-                    {m.content}
-                  </div>
+        {messages.map((msg, idx) => {
+          const isMe        = msg._mine === true || Number(msg.sender_id) === myId
+          const prevMsg     = messages[idx - 1]
+          const nextMsg     = messages[idx + 1]
+          const prevIsSame  = prevMsg && (prevMsg._mine ? isMe : !isMe && Number(prevMsg.sender_id) === Number(msg.sender_id))
+          const nextIsSame  = nextMsg && (nextMsg._mine ? isMe : !isMe && Number(nextMsg.sender_id) === Number(msg.sender_id))
+          const isLastInGrp = !nextIsSame
+          const showDate    = !prevMsg || !sameDay(prevMsg.sent_at, msg.sent_at)
+          const showTime    = isLastInGrp
+          const showName    = !isMe && !prevIsSame
+
+          return (
+            <div key={msg.id}>
+              {/* Date separator */}
+              {showDate && (
+                <div className="flex items-center gap-3 my-4">
+                  <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+                  <span className="text-[10px] font-semibold text-gray-400 bg-white dark:bg-gray-800 px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm">
+                    {fmtDate(msg.sent_at)}
+                  </span>
+                  <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
                 </div>
-              )
-            })}
-          </div>
+              )}
 
-          <div className="flex gap-2 p-3 border-t border-gray-100 dark:border-gray-800 shrink-0">
-            <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && send()}
-              placeholder="Type a message…" className="input flex-1" />
-            <button onClick={send} disabled={!text.trim()} className="btn-primary px-4 disabled:opacity-40">
-              <Send size={16} />
+              <div className={cn('flex items-end gap-2', isMe ? 'flex-row-reverse' : 'flex-row',
+                prevIsSame ? 'mt-0.5' : 'mt-3')}>
+
+                {/* Partner avatar — only on last in group */}
+                {!isMe && (
+                  <div className="shrink-0 w-7 self-end mb-1">
+                    {isLastInGrp ? (
+                      <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
+                        style={{ background: `linear-gradient(135deg, ${TEAL}, #2D9E95)` }}>
+                        {p.name[0].toUpperCase()}
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+
+                <div className={cn('flex flex-col max-w-[68%]', isMe ? 'items-end' : 'items-start')}>
+                  {showName && (
+                    <p className="text-[10px] font-semibold mb-1 ml-1" style={{ color: TEAL }}>
+                      {msg.sender_name || p.name}
+                    </p>
+                  )}
+
+                  <div className={cn(
+                    'px-4 py-2.5 text-sm leading-relaxed shadow-sm',
+                    isMe
+                      ? cn('text-white', isLastInGrp ? 'rounded-2xl rounded-br-sm' : 'rounded-2xl')
+                      : cn('bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-100 dark:border-gray-700',
+                          isLastInGrp ? 'rounded-2xl rounded-bl-sm' : 'rounded-2xl'),
+                  )}
+                    style={isMe ? { background: `linear-gradient(135deg, #1D6660, #2D9E95)` } : {}}>
+                    {msg.content}
+                  </div>
+
+                  {showTime && (
+                    <p className={cn('text-[10px] text-gray-400 mt-1', isMe ? 'mr-1' : 'ml-1')}>
+                      {fmtTime(msg.sent_at)}
+                      {isMe && <span className="ml-1 text-teal-400">✓</span>}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+
+        {/* Typing indicator */}
+        {typing && (
+          <div className="flex items-end gap-2 mt-3">
+            <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
+              style={{ background: `linear-gradient(135deg, ${TEAL}, #2D9E95)` }}>
+              {p.name[0].toUpperCase()}
+            </div>
+            <div className="flex items-center gap-1.5 px-4 py-3 bg-white dark:bg-gray-800 rounded-2xl rounded-bl-sm border border-gray-100 dark:border-gray-700 shadow-sm">
+              {[0, 1, 2].map((i) => (
+                <span key={i} className="w-2 h-2 rounded-full bg-gray-400 animate-bounce"
+                  style={{ animationDelay: `${i * 160}ms` }} />
+              ))}
+            </div>
+            <span className="text-[11px] text-gray-400 mb-1">{p.name.split(' ')[0]} is typing…</span>
+          </div>
+        )}
+
+        <div ref={bottomRef} />
+      </div>
+
+      {/* ── Input area ── */}
+      <div className="shrink-0 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 px-4 py-3">
+        <div className="flex items-end gap-3 bg-gray-50 dark:bg-gray-800 rounded-2xl px-4 py-2.5 border border-gray-200 dark:border-gray-700 focus-within:border-[#1D6660] focus-within:ring-2 focus-within:ring-[#1D6660]/20 transition-all">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={onKeyDown}
+            placeholder={`Message ${p.name.split(' ')[0]}…`}
+            rows={1}
+            className="flex-1 bg-transparent resize-none text-sm text-gray-800 dark:text-gray-100 placeholder-gray-400 focus:outline-none max-h-24 overflow-y-auto"
+            style={{ lineHeight: '1.6' }}
+          />
+          <button onClick={send} disabled={!text.trim() || sending}
+            className={cn(
+              'shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200',
+              text.trim()
+                ? 'text-white shadow-sm hover:opacity-90 scale-100'
+                : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed',
+            )}
+            style={text.trim() ? { background: `linear-gradient(135deg, #1D6660, #2D9E95)` } : {}}>
+            <Send size={15} />
+          </button>
+        </div>
+        <p className="text-center text-[10px] text-gray-300 dark:text-gray-600 mt-1.5">
+          Enter to send · Shift+Enter for new line
+        </p>
+      </div>
+    </div>
+  )
+}
+
+/* ── Messages Tab ───────────────────────────────────────────── */
+function MessagesTab() {
+  const [activeId, setActiveId]  = useState<number | null>(null)
+  const [showChat, setShowChat]  = useState(false)
+
+  const { data: connections = [] } = useQuery<PConn[]>({
+    queryKey: ['partner-connections'],
+    queryFn:  () => partnerApi.connections().then((r) => r.data),
+    refetchInterval: 30_000,
+  })
+
+  const activeConn = connections.find((c) => c.id === activeId) ?? null
+  const openChat   = (id: number) => { setActiveId(id); setShowChat(true) }
+
+  return (
+    <div className="flex gap-0 h-[600px] rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm">
+
+      {/* ── Sidebar ── */}
+      <aside className={cn(
+        'w-full md:w-72 shrink-0 flex flex-col border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900',
+        showChat ? 'hidden md:flex' : 'flex',
+      )}>
+        {/* Gradient header */}
+        <div className="px-5 py-4 shrink-0" style={{ background: `linear-gradient(135deg, ${TEAL}, #2D9E95)` }}>
+          <p className="text-white font-bold text-base">Study Chats</p>
+          <p className="text-white/70 text-xs mt-0.5">
+            {connections.length} study partner{connections.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+
+        {/* List */}
+        <div className="flex-1 overflow-y-auto divide-y divide-gray-50 dark:divide-gray-800">
+          {connections.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 px-4 gap-2">
+              <MessageSquare size={28} className="text-gray-300" />
+              <p className="text-xs text-gray-400 text-center">Accept a connection request to start chatting</p>
+            </div>
+          ) : connections.map((c) => {
+            const p = c.partner
+            const isActive = c.id === activeId
+            return (
+              <button key={c.id} onClick={() => openChat(c.id)}
+                className={cn(
+                  'w-full text-left flex items-center gap-3 px-4 py-3.5 transition-all duration-150 relative',
+                  isActive
+                    ? 'bg-teal-50 dark:bg-teal-900/20'
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-800/60',
+                )}>
+                {/* Active indicator strip */}
+                {isActive && (
+                  <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full" style={{ background: TEAL }} />
+                )}
+
+                {/* Avatar + online dot */}
+                <div className="relative shrink-0">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm"
+                    style={{ background: `linear-gradient(135deg, ${TEAL}, #2D9E95)` }}>
+                    {p.name[0].toUpperCase()}
+                  </div>
+                  <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 rounded-full border-2 border-white dark:border-gray-900" />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <p className={cn('text-sm font-semibold truncate', isActive ? 'text-[#1D6660] dark:text-teal-400' : 'text-gray-800 dark:text-gray-100')}>
+                    {p.name}
+                  </p>
+                  <p className="text-[11px] text-gray-400 truncate mt-0.5">
+                    {p.shared_subjects.length > 0
+                      ? `${p.shared_subjects[0]}${p.shared_subjects.length > 1 ? ` +${p.shared_subjects.length - 1} subjects` : ''}`
+                      : p.city ?? 'Study Partner'}
+                  </p>
+                </div>
+
+                {isActive && (
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: TEAL }} />
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </aside>
+
+      {/* ── Chat area ── */}
+      <div className={cn('flex-1 flex flex-col min-w-0 bg-white dark:bg-gray-900', showChat ? 'flex' : 'hidden md:flex')}>
+        {/* Mobile back */}
+        {showChat && (
+          <div className="md:hidden px-4 pt-3 pb-0">
+            <button onClick={() => setShowChat(false)}
+              className="flex items-center gap-1.5 text-sm font-semibold"
+              style={{ color: TEAL }}>
+              <ArrowLeft size={15} /> All Chats
             </button>
           </div>
-        </div>
-      ) : (
-        <div className="flex-1 card flex items-center justify-center">
-          <div className="empty-state py-8">
-            <div className="empty-icon"><MessageSquare size={28} /></div>
-            <p className="empty-title">No chat selected</p>
-            <p className="empty-sub">Pick a connection from the left to start chatting</p>
+        )}
+
+        {activeConn ? (
+          <PartnerChatPanel conn={activeConn} />
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8"
+            style={{ background: '#f5f7f6' }}>
+            <div className="w-20 h-20 rounded-full flex items-center justify-center shadow-sm"
+              style={{ background: `${TEAL}18` }}>
+              <MessageCircle size={36} style={{ color: TEAL }} />
+            </div>
+            <div className="text-center">
+              <p className="font-bold text-gray-700 dark:text-gray-200 text-base">Select a conversation</p>
+              <p className="text-sm text-gray-400 mt-1">Choose a study partner from the left to start chatting</p>
+            </div>
+            <div className="flex gap-2 mt-2">
+              {['✨ Real-time chat', '📚 Study together', '💡 Share tips'].map(t => (
+                <span key={t} className="text-[11px] px-3 py-1 rounded-full bg-white border border-gray-200 text-gray-500 shadow-sm">{t}</span>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }

@@ -3,7 +3,10 @@ import { Navigate } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 
 export function AdminRoute({ children }: { children: ReactNode }) {
-  const user = useAuthStore((s) => s.user)
+  const user      = useAuthStore((s) => s.user)
+  const isLoading = useAuthStore((s) => s.isLoading)
+
+  if (isLoading) return null          // wait for session check before deciding
   if (!user || !user.is_admin) return <Navigate to="/dashboard" replace />
   return <>{children}</>
 }
