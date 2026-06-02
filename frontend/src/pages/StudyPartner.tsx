@@ -1,15 +1,14 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { partnerApi } from '@/api/partner'
-import { subjectsApi } from '@/api/subjects'
 import { apiClient } from '@/api/client'
 import { useAuthStore } from '@/store/authStore'
 import { ProtectedRoute } from '@/components/common/ProtectedRoute'
-import { Users, MessageSquare, Clock, UserPlus, Send, BookOpen, ChevronLeft } from 'lucide-react'
+import { Users, MessageSquare, Clock, Send } from 'lucide-react'
 import type { Connection, Message, PartnerUser } from '@/types'
 import { cn } from '@/lib/utils'
 
-type Tab = 'groups' | 'discover' | 'requests' | 'messages'
+type Tab = 'discover' | 'requests' | 'messages'
 
 /* ── Shared helpers ─────────────────────────────────────────── */
 function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' | 'lg' }) {
@@ -76,109 +75,6 @@ function PartnerCard({ user, onConnect }: { user: PartnerCardData; onConnect: (i
       <button onClick={() => onConnect(user.id)} className="btn-outline w-full gap-1.5 hover:border-primary hover:text-primary hover:bg-primary/5">
         <UserPlus size={14} /> Connect
       </button>
-    </div>
-  )
-}
-
-/* ── Groups Tab ─────────────────────────────────────────────── */
-function GroupsTab({ onBrowseGroup }: { onBrowseGroup: (subject: string) => void }) {
-  const { data: groups = [], isLoading } = useQuery({
-    queryKey: ['partner-groups'],
-    queryFn: () => subjectsApi.groups().then((r) => r.data),
-  })
-
-  const user = useAuthStore((s) => s.user)
-  const myOptionals: string[] = user?.optional_subjects ?? []
-  const countMap = new Map(groups.map((g) => [g.subject, g.member_count]))
-
-  if (myOptionals.length === 0) {
-    return (
-      <div className="empty-state">
-        <div className="empty-icon"><BookOpen size={28} /></div>
-        <p className="empty-title">No optional subjects selected</p>
-        <p className="empty-sub">
-          Go to your profile (top-right avatar → Edit Profile &amp; Subjects) and choose up to 6 optional subjects to see your groups here.
-        </p>
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="bg-primary/5 border border-primary/15 rounded-2xl p-4 flex gap-3">
-        <BookOpen size={20} className="text-primary shrink-0 mt-0.5" />
-        <div className="text-sm text-gray-700 dark:text-gray-200">
-          <strong>Your Optional Subject Groups</strong> — Click any group to see aspirants preparing the same optional. The number shows how many students are in that group.
-        </div>
-      </div>
-
-      {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {[...Array(myOptionals.length)].map((_, i) => <div key={i} className="h-24 skeleton" />)}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {myOptionals.map((subject) => {
-            const count = countMap.get(subject) ?? 0
-            return (
-              <button key={subject} onClick={() => onBrowseGroup(subject)}
-                className="card-interactive text-left p-5 border-2 border-primary/20 hover:border-primary hover:shadow-glow-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-gray-800 dark:text-gray-100 leading-snug">{subject}</p>
-                    <span className="badge-primary mt-2 text-[10px]">Your optional</span>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <span className="text-2xl font-black text-primary">{count}</span>
-                    <p className="text-[10px] text-gray-400 leading-tight mt-0.5">
-                      {count === 1 ? 'aspirant' : 'aspirants'}
-                    </p>
-                  </div>
-                </div>
-              </button>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
-
-/* ── Group Members view ─────────────────────────────────────── */
-function GroupMembersView({ subject, onBack }: { subject: string; onBack: () => void }) {
-  const qc = useQueryClient()
-  const { data } = useQuery({
-    queryKey: ['group-members', subject],
-    queryFn: () => subjectsApi.groupMembers(subject).then((r) => r.data),
-  })
-
-  const connect = async (id: number) => {
-    await partnerApi.sendRequest(id)
-    qc.invalidateQueries({ queryKey: ['group-members', subject] })
-    qc.invalidateQueries({ queryKey: ['partner-discover'] })
-  }
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <button onClick={onBack} className="btn-ghost btn-sm gap-1"><ChevronLeft size={15} /> Groups</button>
-        <div>
-          <h3 className="font-bold text-gray-900 dark:text-white">{subject}</h3>
-          <p className="text-xs text-gray-400">{data?.total ?? 0} aspirants in this group</p>
-        </div>
-      </div>
-
-      {(data?.items ?? []).length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-icon"><Users size={28} /></div>
-          <p className="empty-title">No members yet</p>
-          <p className="empty-sub">You can be the first in this group!</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {(data?.items ?? []).map((u: PartnerCardData) => <PartnerCard key={u.id} user={u} onConnect={connect} />)}
-        </div>
-      )}
     </div>
   )
 }
@@ -452,11 +348,9 @@ function MessagesTab() {
 
 /* ── Main page ──────────────────────────────────────────────── */
 function StudyPartnerContent() {
-  const [tab, setTab] = useState<Tab>('groups')
-  const [browsingGroup, setBrowsingGroup] = useState<string | null>(null)
+  const [tab, setTab] = useState<Tab>('discover')
 
   const tabs = [
-    { id: 'groups' as const,   label: 'Groups',   icon: '📚' },
     { id: 'discover' as const, label: 'Discover',  icon: '🔍' },
     { id: 'requests' as const, label: 'Requests',  icon: '📩' },
     { id: 'messages' as const, label: 'Messages',  icon: '💬' },
@@ -466,20 +360,18 @@ function StudyPartnerContent() {
     <div className="space-y-6 animate-fade-in">
       <div className="page-header">
         <h1 className="page-title flex items-center gap-2"><Users size={26} className="text-green-500" /> Study Partner</h1>
-        <p className="page-sub">Find aspirants who share your optional subjects and study together</p>
+        <p className="page-sub">Find aspirants who share your optional subjects and connect with them</p>
       </div>
 
-      <div className="tabs w-fit flex-wrap">
+      <div className="tabs w-fit">
         {tabs.map(({ id, label, icon }) => (
-          <button key={id} onClick={() => { setTab(id); setBrowsingGroup(null) }}
+          <button key={id} onClick={() => setTab(id)}
             className={tab === id ? 'tab-active' : 'tab'}>
             {icon} {label}
           </button>
         ))}
       </div>
 
-      {tab === 'groups' && !browsingGroup && <GroupsTab onBrowseGroup={setBrowsingGroup} />}
-      {tab === 'groups' && browsingGroup && <GroupMembersView subject={browsingGroup} onBack={() => setBrowsingGroup(null)} />}
       {tab === 'discover' && <DiscoverTab />}
       {tab === 'requests' && <RequestsTab />}
       {tab === 'messages' && <MessagesTab />}
