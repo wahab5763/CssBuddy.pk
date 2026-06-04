@@ -19,23 +19,31 @@ const SUBJECT_ICONS: Record<string, string> = {
 
 function QuizTab() {
   const [step, setStep] = useState<QuizStep>('config')
-  const [subject, setSubject] = useState('')
+  const [subject, setSubject] = useState('mix')
   const [count, setCount] = useState(10)
-  const [mode, setMode] = useState('random')
   const [questions, setQuestions] = useState<Mcq[]>([])
   const [answers, setAnswers] = useState<Record<number, string>>({})
   const [result, setResult] = useState<QuizSubmitResponse | null>(null)
   const [loading, setLoading] = useState(false)
+  const [shake, setShake] = useState(false)
 
   const { data: subjects = [] } = useQuery<SubjectCount[]>({
     queryKey: ['practice-subjects'],
     queryFn: () => practiceApi.subjects().then((r) => r.data),
   })
 
+  // 'mix' → backend mixes all subjects; display label used for submit/PDF title
+  const displaySubject = subject === 'mix' ? 'Mixed Subjects' : subject
+
   const startQuiz = async () => {
+    if (!subject) {
+      setShake(true)
+      setTimeout(() => setShake(false), 600)
+      return
+    }
     setLoading(true)
     try {
-      const res = await practiceApi.startQuiz(subject, count, mode)
+      const res = await practiceApi.startQuiz(subject, count, 'random')
       setQuestions(res.data.questions); setAnswers({}); setStep('questions')
     } finally { setLoading(false) }
   }
@@ -44,93 +52,121 @@ function QuizTab() {
     const ans = Object.entries(answers).map(([id, sel]) => ({ mcq_id: Number(id), selected: sel }))
     setLoading(true)
     try {
-      const res = await practiceApi.submitQuiz(subject, ans)
+      const res = await practiceApi.submitQuiz(displaySubject, ans)
       setResult(res.data); setStep('results')
     } finally { setLoading(false) }
   }
 
   const downloadPdf = async () => {
     const ans = Object.entries(answers).map(([id, sel]) => ({ mcq_id: Number(id), selected: sel }))
-    const res = await practiceApi.downloadPdf(subject, ans)
+    const res = await practiceApi.downloadPdf(displaySubject, ans)
     const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
-    const a = document.createElement('a'); a.href = url; a.download = `quiz_${subject}.pdf`; a.click()
+    const a = document.createElement('a'); a.href = url; a.download = `quiz_${displaySubject}.pdf`; a.click()
     URL.revokeObjectURL(url)
   }
 
   /* Config step */
   if (step === 'config') return (
-    <div className="max-w-2xl space-y-6">
-      {/* Subject grid */}
+    <div className="space-y-6">
+      {/* Subject row — single horizontal scrollable line */}
       <div>
-        <label className="label text-base">Choose Subject</label>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-2">
-          {subjects.map((s) => (
-            <button key={s.subject} onClick={() => setSubject(s.subject)}
-              className={cn(
-                'card p-4 text-left transition-all duration-150 border-2',
-                subject === s.subject
-                  ? 'border-primary bg-primary/5 shadow-glow-sm'
-                  : 'border-transparent hover:border-gray-200 dark:hover:border-gray-700'
-              )}>
-              <span className="text-2xl mb-2 block">{SUBJECT_ICONS[s.subject] || '📚'}</span>
-              <p className="text-sm font-semibold text-gray-800 dark:text-gray-100 leading-tight">{s.subject}</p>
-              <p className="text-xs text-gray-400 mt-1">{s.count} questions</p>
-            </button>
-          ))}
+        <div className="flex items-center justify-between mb-3">
+          <label className="label mb-0 text-base">Choose Subject</label>
+          {subject === 'mix'
+            ? <span className="text-xs font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full">
+                Equal mix from all subjects
+              </span>
+            : subject
+              ? <span className="text-xs font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full">
+                  {subjects.find(s => s.subject === subject)?.count ?? 0} questions available
+                </span>
+              : <span className="text-xs text-gray-400">Select a subject to begin</span>}
         </div>
+        <div className={cn('flex gap-3 overflow-x-auto pb-2 -mx-1 px-1', shake && 'animate-shake')}>
+
+          {/* Mix card — always first */}
+          <button onClick={() => setSubject('mix')}
+            className={cn(
+              'shrink-0 w-36 rounded-2xl border-2 p-3.5 text-left transition-all duration-150',
+              subject === 'mix'
+                ? 'border-primary bg-primary text-white shadow-glow-sm'
+                : 'border-dashed border-primary/40 bg-primary/5 dark:bg-primary/10 hover:border-primary hover:shadow-card',
+            )}>
+            <span className="text-2xl leading-none mb-2 block">🎲</span>
+            <p className={cn('text-xs font-semibold leading-snug', subject === 'mix' ? 'text-white' : 'text-primary dark:text-teal-400')}>
+              Mixed Subjects
+            </p>
+            <p className={cn('text-[11px] mt-1.5 font-medium', subject === 'mix' ? 'text-white/70' : 'text-primary/60 dark:text-teal-500')}>
+              All subjects
+            </p>
+          </button>
+
+          {subjects.map((s) => {
+            const active = subject === s.subject
+            return (
+              <button key={s.subject} onClick={() => setSubject(s.subject)}
+                className={cn(
+                  'shrink-0 w-36 rounded-2xl border-2 p-3.5 text-left transition-all duration-150',
+                  active
+                    ? 'border-primary bg-primary text-white shadow-glow-sm'
+                    : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:border-primary/50 hover:shadow-card',
+                )}>
+                <span className="text-2xl leading-none mb-2 block">{SUBJECT_ICONS[s.subject] || '📚'}</span>
+                <p className={cn('text-xs font-semibold leading-snug line-clamp-2', active ? 'text-white' : 'text-gray-800 dark:text-gray-100')}>
+                  {s.subject}
+                </p>
+                <p className={cn('text-[11px] mt-1.5 font-medium', active ? 'text-white/70' : 'text-gray-400')}>
+                  {s.count} Qs
+                </p>
+              </button>
+            )
+          })}
+        </div>
+        {shake && !subject && (
+          <p className="text-xs text-red-400 mt-2 flex items-center gap-1">
+            <span>⚠</span> Please select a subject first
+          </p>
+        )}
       </div>
 
-      {/* Count slider */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="label mb-0">Number of Questions</label>
-          <span className="badge-primary text-lg font-bold px-3 py-1">{count}</span>
+      {/* Count slider + Start in a tidy row */}
+      <div className="flex flex-col sm:flex-row sm:items-end gap-4">
+        <div className="flex-1">
+          <div className="flex items-center justify-between mb-2">
+            <label className="label mb-0">Number of Questions</label>
+            <span className="badge-primary text-base font-black px-3 py-1">{count}</span>
+          </div>
+          <input type="range" min={3} max={50} value={count} onChange={(e) => setCount(Number(e.target.value))}
+            className="w-full h-2 accent-primary rounded-full cursor-pointer" />
+          <div className="flex justify-between text-xs text-gray-400 mt-1"><span>3</span><span>50</span></div>
         </div>
-        <input type="range" min={3} max={50} value={count} onChange={(e) => setCount(Number(e.target.value))}
-          className="w-full h-2 accent-primary rounded-full cursor-pointer" />
-        <div className="flex justify-between text-xs text-gray-400 mt-1"><span>3</span><span>50</span></div>
+        <button onClick={startQuiz} disabled={loading}
+          className="btn-primary sm:w-44 py-3.5 text-base gap-2 shrink-0">
+          <Play size={18} /> {loading ? 'Loading…' : 'Start Quiz'}
+        </button>
       </div>
-
-      {/* Mode */}
-      <div>
-        <label className="label">Mode</label>
-        <div className="flex gap-3">
-          {[['random', '🎲 Random'], ['sequential', '📋 Sequential']].map(([val, lbl]) => (
-            <button key={val} onClick={() => setMode(val)}
-              className={cn('flex-1 py-3 rounded-xl border-2 text-sm font-medium transition-all',
-                mode === val ? 'border-primary bg-primary/5 text-primary' : 'border-gray-200 dark:border-gray-700 text-gray-500')}>
-              {lbl}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <button onClick={startQuiz} disabled={!subject || loading}
-        className="btn-primary w-full py-4 text-base gap-2">
-        <Play size={18} /> {loading ? 'Loading questions…' : 'Start Quiz'}
-      </button>
     </div>
   )
 
   /* Questions step */
   if (step === 'questions') {
     const answered = Object.keys(answers).length
-    const pct = Math.round((answered / questions.length) * 100)
+    const allDone  = answered === questions.length
+    const pct      = Math.round((answered / questions.length) * 100)
     return (
       <div className="space-y-5">
-        {/* Progress */}
+        {/* Progress bar — sticky, no buttons */}
         <div className="card p-4 sticky top-0 z-10">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-semibold">{answered}/{questions.length} answered</span>
-            <div className="flex gap-2">
-              <button onClick={() => setStep('config')} className="btn-ghost btn-sm"><RotateCcw size={13} /> Restart</button>
-              <button onClick={submitQuiz} disabled={loading || answered === 0} className="btn-primary btn-sm gap-1.5">
-                {loading ? 'Submitting…' : 'Submit Quiz'}
-              </button>
-            </div>
+            <span className="text-sm font-semibold">
+              {answered}/{questions.length} answered
+              {allDone && <span className="ml-2 text-green-500 text-xs font-medium">✓ All done!</span>}
+            </span>
+            <span className="text-xs text-gray-400">{pct}%</span>
           </div>
           <div className="w-full h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-            <div className="h-full bg-gradient-brand rounded-full transition-all duration-300" style={{ width: `${pct}%` }} />
+            <div className={cn('h-full rounded-full transition-all duration-300', allDone ? 'bg-gradient-to-r from-green-500 to-emerald-400' : 'bg-gradient-brand')}
+              style={{ width: `${pct}%` }} />
           </div>
         </div>
 
@@ -160,6 +196,20 @@ function QuizTab() {
             </div>
           </div>
         ))}
+
+        {/* Bottom action bar */}
+        <div className="card p-4 flex items-center justify-between gap-3">
+          <button onClick={() => setStep('config')} className="btn-outline gap-2">
+            <RotateCcw size={15} /> Restart
+          </button>
+          <button onClick={submitQuiz} disabled={loading || answered === 0}
+            className={cn('flex-1 py-3 text-sm font-semibold gap-2 rounded-xl transition-all flex items-center justify-center',
+              allDone
+                ? 'bg-green-500 hover:bg-green-600 text-white shadow-md'
+                : 'btn-primary')}>
+            {loading ? <><RotateCcw size={15} className="animate-spin" /> Submitting…</> : allDone ? '🎯 Submit Quiz' : 'Submit Quiz'}
+          </button>
+        </div>
       </div>
     )
   }

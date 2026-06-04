@@ -39,6 +39,31 @@ def get_quiz_questions(db: Session, subject: str, count: int, mode: str) -> list
     return items
 
 
+def get_mix_quiz_questions(db: Session, count: int) -> list[Mcq]:
+    """Fetch MCQs distributed equally across all available subjects."""
+    subjects_data = get_subjects_with_counts(db)
+    if not subjects_data:
+        return []
+
+    per_subject = max(1, count // len(subjects_data))
+    all_questions: list[Mcq] = []
+
+    for s in subjects_data:
+        take = min(per_subject, s["count"])
+        rows = (
+            db.query(Mcq)
+            .join(McqSet)
+            .filter(McqSet.subject == s["subject"])
+            .order_by(func.random())
+            .limit(take)
+            .all()
+        )
+        all_questions.extend(rows)
+
+    random.shuffle(all_questions)
+    return all_questions[:count]
+
+
 def evaluate_quiz(mcqs: list[Mcq], answers: list[QuizAnswer]) -> QuizSubmitResponse:
     answer_map = {a.mcq_id: a.selected.upper() for a in answers}
     results = []

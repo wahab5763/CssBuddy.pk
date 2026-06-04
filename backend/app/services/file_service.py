@@ -89,7 +89,10 @@ def _clean_note_name(stem: str) -> str:
     name = re.sub(r'\bMcqs?\b', 'MCQs', name, flags=re.IGNORECASE)
     name = re.sub(r'\bCce\b', 'CCE', name, flags=re.IGNORECASE)
     name = re.sub(r'\bSpsc\b', 'SPSC', name, flags=re.IGNORECASE)
-    return name.title().replace('Mcqs', 'MCQs').replace('Cce', 'CCE').replace('Spsc', 'SPSC')
+    name = re.sub(r'\bEds\b', 'EDS', name, flags=re.IGNORECASE)
+    # Collapse multiple spaces (from dashes stripped out of filenames)
+    name = re.sub(r'\s{2,}', ' ', name).strip()
+    return name.title().replace('Mcqs', 'MCQs').replace('Cce', 'CCE').replace('Spsc', 'SPSC').replace('Eds', 'EDS')
 
 
 def list_notes() -> list[dict]:

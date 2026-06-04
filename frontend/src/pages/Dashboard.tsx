@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuthStore } from '@/store/authStore'
 import { dashboardApi } from '@/api/dashboard'
 import { practiceApi } from '@/api/practice'
-import { Flame, BookOpen, RefreshCw, TrendingUp, Target, ChevronLeft, ChevronRight, Quote, Languages, RotateCcw } from 'lucide-react'
+import { BookOpen, RefreshCw, ChevronLeft, ChevronRight, Quote, Languages, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 /* ── Types ──────────────────────────────────────────────── */
@@ -356,20 +356,6 @@ function McqBrowser() {
 /* ════════════════════════════════════════════════════════
    STAT CARD
    ════════════════════════════════════════════════════════ */
-function StatCard({ icon, value, label, gradient, sub }: {
-  icon: React.ReactNode; value: string | number; label: string; gradient: string; sub?: string
-}) {
-  return (
-    <div className="stat-card">
-      <div className={cn('stat-icon', gradient)}>{icon}</div>
-      <div>
-        <p className="text-2xl font-bold text-gray-900 dark:text-white">{value}</p>
-        <p className="text-sm font-medium text-gray-600 dark:text-gray-300">{label}</p>
-        {sub && <p className="text-xs text-gray-400 mt-0.5">{sub}</p>}
-      </div>
-    </div>
-  )
-}
 
 /* ════════════════════════════════════════════════════════
    MAIN DASHBOARD
@@ -405,31 +391,11 @@ export function Dashboard() {
               : 'Start your CSS/PMS journey'}
           </h1>
         </div>
-        {(summary as any)?.days_to_exam != null && (
-          <div className="flex items-center gap-3 bg-[#1D6660]/10 dark:bg-[#1D6660]/20 rounded-2xl px-5 py-3 border border-[#1D6660]/20">
-            <div className="text-center">
-              <p className="text-3xl font-black text-[#1D6660] dark:text-teal-400">{(summary as any).days_to_exam}</p>
-              <p className="text-xs text-gray-500 font-medium">Days to Exam</p>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* ── Hero Carousel ── */}
       <HeroCarousel items={carouselItems} />
 
-      {/* ── Stats row ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard icon={<Flame size={22} className="text-orange-500" />}
-          gradient="bg-orange-50 dark:bg-orange-900/20"
-          value={(summary as any)?.streak ?? 0} label="Day Streak" sub="Keep it going!" />
-        <StatCard icon={<Target size={22} className="text-primary" />}
-          gradient="bg-primary/10"
-          value={user?.profile?.exam_year ?? '—'} label="Target Year" sub={user?.profile?.exam_type || 'CSS'} />
-        <StatCard icon={<TrendingUp size={22} className="text-green-500" />}
-          gradient="bg-green-50 dark:bg-green-900/20"
-          value={user?.profile?.prep_level ?? 'Start'} label="Prep Level" sub="Keep improving" />
-      </div>
 
       {/* ── Flash 8-Pack ── */}
       <FlashSection />

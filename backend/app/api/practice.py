@@ -44,7 +44,10 @@ def start_quiz(
     mode: str = Query("random", pattern="^(random|sequential)$"),
     db: Session = Depends(get_db),
 ):
-    mcqs = mcq_service.get_quiz_questions(db, subject, count, mode)
+    if subject == "mix":
+        mcqs = mcq_service.get_mix_quiz_questions(db, count)
+    else:
+        mcqs = mcq_service.get_quiz_questions(db, subject, count, mode)
     if not mcqs:
         raise HTTPException(404, f"No MCQs found for subject: {subject}")
     return {
