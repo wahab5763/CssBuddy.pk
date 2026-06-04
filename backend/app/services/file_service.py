@@ -79,10 +79,27 @@ def list_past_papers() -> dict[str, dict[str, list[str]]]:
     return result
 
 
+def _clean_note_name(stem: str) -> str:
+    import re
+    # Strip leading number prefix like "1.", "2.1", "3.2 " etc.
+    name = re.sub(r'^\d+[\.\d]*\s*', '', stem).strip()
+    # Normalise dashes/underscores to spaces, then title-case
+    name = name.replace('-', ' ').replace('_', ' ')
+    # Fix common abbreviations
+    name = re.sub(r'\bMcqs?\b', 'MCQs', name, flags=re.IGNORECASE)
+    name = re.sub(r'\bCce\b', 'CCE', name, flags=re.IGNORECASE)
+    name = re.sub(r'\bSpsc\b', 'SPSC', name, flags=re.IGNORECASE)
+    return name.title().replace('Mcqs', 'MCQs').replace('Cce', 'CCE').replace('Spsc', 'SPSC')
+
+
 def list_notes() -> list[dict]:
     if not NOTES_DIR.exists():
         return []
     return [
-        {"filename": f.name, "display_name": f.stem.replace("_", " ").title(), "size": f.stat().st_size}
+        {
+            "filename": f.name,
+            "display_name": _clean_note_name(f.stem),
+            "size": f.stat().st_size,
+        }
         for f in sorted(NOTES_DIR.glob("*.pdf"))
     ]
