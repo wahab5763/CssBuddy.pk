@@ -17,12 +17,57 @@ const CONDITION_COLORS: Record<string, string> = {
   Poor: 'bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400',
 }
 
+function BookImages({ paths, apiBase, height, rounded }: {
+  paths: string[]; apiBase: string; height: string; rounded?: string
+}) {
+  const [imgIdx, setImgIdx] = useState(0)
+  const imgs = paths.filter(Boolean)
+
+  if (!imgs.length) return (
+    <div className={cn('w-full bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center', height, rounded)}>
+      <BookMarked size={40} className="text-primary/30" />
+    </div>
+  )
+
+  if (imgs.length === 1) return (
+    <img src={`${apiBase}/static/${imgs[0]}`} alt="book"
+      className={cn('w-full object-cover', height, rounded)} />
+  )
+
+  // Two images — side by side with a subtle divider + click to toggle active
+  return (
+    <div className={cn('relative flex gap-0.5 overflow-hidden', height, rounded)}>
+      {imgs.slice(0, 2).map((p, i) => (
+        <div key={i} className="relative flex-1 overflow-hidden group"
+          onClick={e => { e.stopPropagation(); setImgIdx(i) }}>
+          <img src={`${apiBase}/static/${p}`} alt={`book photo ${i + 1}`}
+            className={cn('w-full h-full object-cover transition-all duration-200',
+              imgIdx === i ? 'brightness-100' : 'brightness-75 hover:brightness-90')} />
+          {/* Photo number badge */}
+          <span className={cn(
+            'absolute top-2 left-2 text-[10px] font-bold px-1.5 py-0.5 rounded-md transition-opacity',
+            imgIdx === i
+              ? 'bg-white text-gray-800 opacity-90'
+              : 'bg-black/40 text-white opacity-70 group-hover:opacity-90',
+          )}>
+            {i + 1}/{imgs.length}
+          </span>
+        </div>
+      ))}
+      {/* Divider line */}
+      <div className="absolute inset-y-0 left-1/2 w-px bg-white/50 pointer-events-none" />
+    </div>
+  )
+}
+
 function BookCard({ book }: { book: Book }) {
   const [open, setOpen] = useState(false)
+  const [modalImg, setModalImg] = useState(0)
   const user = useAuthStore((s) => s.user)
   const qc = useQueryClient()
   const apiBase = import.meta.env.VITE_API_URL || ''
   const canDelete = user?.is_admin || user?.id === book.user_id
+  const imgs = book.image_paths.filter(Boolean)
 
   const handleDelete = async () => {
     if (!confirm('Delete this listing?')) return
@@ -34,14 +79,7 @@ function BookCard({ book }: { book: Book }) {
   return (
     <>
       <button onClick={() => setOpen(true)} className="card-interactive text-left overflow-hidden w-full">
-        {book.image_paths[0] ? (
-          <img src={`${apiBase}/static/${book.image_paths[0]}`} alt={book.title}
-            className="w-full h-44 object-cover" />
-        ) : (
-          <div className="w-full h-44 bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center">
-            <BookMarked size={40} className="text-primary/30" />
-          </div>
-        )}
+        <BookImages paths={book.image_paths} apiBase={apiBase} height="h-44" />
         <div className="p-4">
           <div className="flex items-start justify-between gap-2 mb-2">
             <span className="badge-primary text-[10px]">{book.category}</span>
@@ -49,16 +87,46 @@ function BookCard({ book }: { book: Book }) {
           </div>
           <h3 className="text-sm font-bold text-gray-800 dark:text-gray-100 line-clamp-2 mb-1">{book.title}</h3>
           <p className="text-lg font-black text-primary">Rs {book.price.toLocaleString()}</p>
-          <p className="text-xs text-gray-400 mt-1">by {book.seller_name}</p>
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-xs text-gray-400">by {book.seller_name}</p>
+            {imgs.length > 1 && (
+              <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                <Package size={10} /> {imgs.length} photos
+              </span>
+            )}
+          </div>
         </div>
       </button>
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-fade-in">
           <div className="bg-white dark:bg-gray-900 rounded-3xl shadow-card-lg w-full max-w-lg max-h-[90vh] overflow-y-auto animate-slide-up">
-            {book.image_paths[0] && (
-              <img src={`${apiBase}/static/${book.image_paths[0]}`} alt={book.title} className="w-full h-52 object-cover rounded-t-3xl" />
+
+            {/* Modal image viewer */}
+            {imgs.length > 0 && (
+              <div className="relative rounded-t-3xl overflow-hidden">
+                <img
+                  src={`${apiBase}/static/${imgs[modalImg]}`}
+                  alt={book.title}
+                  className="w-full h-56 object-cover"
+                />
+                {/* Thumbnail strip if 2 images */}
+                {imgs.length > 1 && (
+                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2">
+                    {imgs.map((p, i) => (
+                      <button key={i} onClick={() => setModalImg(i)}
+                        className={cn(
+                          'w-14 h-10 rounded-lg overflow-hidden border-2 transition-all',
+                          modalImg === i ? 'border-white shadow-lg' : 'border-white/40 opacity-70 hover:opacity-100',
+                        )}>
+                        <img src={`${apiBase}/static/${p}`} alt={`thumb ${i + 1}`} className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
+
             <div className="p-5">
               <div className="flex items-start justify-between mb-3">
                 <div>
