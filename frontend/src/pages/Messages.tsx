@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { Send, MessageCircle, Users, ArrowLeft } from 'lucide-react'
+import { PageHeader } from '@/components/common/PageHeader'
 import { useAuthStore } from '@/store/authStore'
 import { partnerApi, chatWsUrl } from '@/api/partner'
 import { ProtectedRoute } from '@/components/common/ProtectedRoute'
@@ -208,12 +209,15 @@ function ChatPanel({ conn, userId }: { conn: Connection; userId: number }) {
         {messages.map((msg, idx) => {
           const isMe       = Number(msg.sender_id) === Number(userId)
           const prevMsg    = messages[idx - 1]
-          const sameSender = prevMsg && Number(prevMsg.sender_id) === Number(msg.sender_id)
+          const prevIsMe   = prevMsg && Number(prevMsg.sender_id) === Number(userId)
+          const sameSender = prevMsg !== undefined && prevIsMe === isMe
 
           return (
             <div key={msg.id} className={cn('flex flex-col', isMe ? 'items-end' : 'items-start')}>
               {!isMe && !sameSender && (
-                <p className="text-[10px] font-semibold text-gray-400 mb-0.5 ml-1">{msg.sender_name}</p>
+                <p className="text-[10px] font-semibold text-gray-400 mb-0.5 ml-1">
+                  {msg.sender_name || partner.name}
+                </p>
               )}
               <div className={cn(
                 'max-w-[70%] px-4 py-2.5 rounded-2xl text-sm leading-relaxed',
@@ -285,13 +289,11 @@ function MessagesContent() {
 
   return (
     <div className="space-y-4">
-      {/* Page header */}
-      <div className="page-header">
-        <h1 className="page-title flex items-center gap-2">
-          <MessageCircle size={24} style={{ color: TEAL }} /> Messages
-        </h1>
-        <p className="page-sub">Chat privately with your connected study partners</p>
-      </div>
+      <PageHeader
+        icon={<MessageCircle size={22} className="text-white" />}
+        title="Messages"
+        subtitle="Chat privately with your connected study partners"
+      />
 
       {isLoading ? (
         <div className="flex gap-4 h-[600px]">

@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Upload
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_admin_user, get_current_user
+from app.core.deps import get_admin_user
 from app.models.book import Book
 from app.models.user import User
 from app.schemas.book import BookCreate, BookOut
@@ -65,12 +65,12 @@ def get_book(book_id: int, db: Session = Depends(get_db)):
 async def create_book(
     title: str = Form(...),
     category: str = Form(...),
-    condition: str = Form(...),
     price: int = Form(...),
-    contact_details: str = Form(...),
     description: Optional[str] = Form(None),
+    condition: str = Form(default="New"),
+    contact_details: str = Form(default="cssbuddy.pk@gmail.com"),
     images: list[UploadFile] = File(default=[]),
-    user: User = Depends(get_current_user),
+    user: User = Depends(get_admin_user),
     db: Session = Depends(get_db),
 ):
     book = Book(
@@ -98,24 +98,20 @@ async def create_book(
 
 
 @router.patch("/{book_id}/status", response_model=Msg)
-def toggle_availability(book_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def toggle_availability(book_id: int, _: User = Depends(get_admin_user), db: Session = Depends(get_db)):
     book = db.get(Book, book_id)
     if not book:
         raise HTTPException(404, "Book not found")
-    if book.user_id != user.id and not user.is_admin:
-        raise HTTPException(403, "Not your listing")
     book.is_available = not book.is_available
     db.commit()
     return Msg(detail="Status updated")
 
 
 @router.delete("/{book_id}", response_model=Msg)
-def delete_book(book_id: int, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def delete_book(book_id: int, _: User = Depends(get_admin_user), db: Session = Depends(get_db)):
     book = db.get(Book, book_id)
     if not book:
         raise HTTPException(404, "Book not found")
-    if book.user_id != user.id and not user.is_admin:
-        raise HTTPException(403, "Not your listing")
     db.delete(book)
     db.commit()
     return Msg(detail="Deleted")

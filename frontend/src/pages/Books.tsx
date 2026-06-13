@@ -4,6 +4,7 @@ import { booksApi } from '@/api/books'
 import { useAuthStore } from '@/store/authStore'
 import type { Book } from '@/types'
 import { Plus, X, BookMarked, Phone, Trash2, Package } from 'lucide-react'
+import { PageHeader } from '@/components/common/PageHeader'
 import { useForm } from 'react-hook-form'
 import { cn } from '@/lib/utils'
 
@@ -247,10 +248,12 @@ export function Books() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-start justify-between">
-        <div className="page-header mb-0">
-          <h1 className="page-title flex items-center gap-2"><BookMarked size={26} className="text-orange-500" /> Books Marketplace</h1>
-          <p className="page-sub">Buy and sell CSS/PMS preparation books</p>
-        </div>
+        <PageHeader
+          icon={<BookMarked size={22} className="text-white" />}
+          title="Books Marketplace"
+          subtitle="Buy and sell CSS/PMS preparation books"
+          className="mb-0"
+        />
         {user && (
           <button onClick={() => setCreating(true)} className="btn-primary shrink-0 gap-2">
             <Plus size={16} /> Sell a Book

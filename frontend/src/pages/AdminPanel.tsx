@@ -1,13 +1,14 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { adminApi } from '@/api/admin'
 import { essayApi } from '@/api/essay'
 import { AdminRoute } from '@/components/common/AdminRoute'
-import { ShieldCheck, Users, BookOpen, PenLine, BarChart3, Upload, UserCheck, UserX } from 'lucide-react'
+import { ShieldCheck, Users, BookOpen, PenLine, BarChart3, Upload, UserCheck, UserX, Globe } from 'lucide-react'
+import { PageHeader } from '@/components/common/PageHeader'
 import { formatDate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 
-const SUBJECTS = ['Current Affairs', 'English (Precis & Composition)', 'General Science & Ability', 'Islamic Studies', 'Pakistan Affairs']
+const SUBJECTS = ['Current Affairs', 'Pakistan Affairs', 'Islamic Studies', 'General Science & Ability', 'English (Precis & Composition)', 'General Knowledge']
 
 function StatCard({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: number | string; color: string }) {
   return (
@@ -182,7 +183,147 @@ function McqImportTab() {
   )
 }
 
-type AdminTab = 'overview' | 'users' | 'essays' | 'mcqs'
+interface ScrapeJob {
+  status: 'running' | 'done' | 'error'
+  added: number
+  errors: number
+  page: number
+  total_pages: number
+  subject: string
+  message?: string
+  last_error?: string
+}
+
+function ScrapeMcqsTab() {
+  const [subject, setSubject] = useState(SUBJECTS[0])
+  const [pages, setPages] = useState(5)
+  const [starting, setStarting] = useState(false)
+  const [jobId, setJobId] = useState<string | null>(null)
+  const [job, setJob] = useState<ScrapeJob | null>(null)
+
+  useEffect(() => {
+    if (!jobId || job?.status === 'done' || job?.status === 'error') return
+    const id = setInterval(async () => {
+      try {
+        const res = await adminApi.scrapeStatus(jobId)
+        setJob(res.data)
+      } catch { /* ignore */ }
+    }, 2000)
+    return () => clearInterval(id)
+  }, [jobId, job?.status])
+
+  const start = async () => {
+    setStarting(true)
+    setJob(null)
+    try {
+      const res = await adminApi.scrapeMcqs(subject, pages)
+      setJobId(res.data.job_id)
+      setJob({ status: 'running', added: 0, errors: 0, page: 0, total_pages: pages, subject })
+    } catch {
+      setJob({ status: 'error', added: 0, errors: 0, page: 0, total_pages: pages, subject, message: 'Failed to start scraping.' })
+    } finally { setStarting(false) }
+  }
+
+  const isRunning = job?.status === 'running'
+  const progress = job ? Math.round((job.page / Math.max(job.total_pages, 1)) * 100) : 0
+
+  return (
+    <div className="max-w-lg space-y-5">
+      <div className="card p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800">
+        <div className="flex items-start gap-2.5">
+          <Globe size={16} className="text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300 mb-0.5">Auto-Scrape from PakMCQs.com</p>
+            <p className="text-xs text-emerald-600 dark:text-emerald-400">
+              Fetches fresh MCQs directly from pakmcqs.com and saves to the database. Duplicate questions are skipped automatically.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <label className="label">Subject</label>
+        <select value={subject} onChange={(e) => { setSubject(e.target.value); setJob(null) }} className="select" disabled={isRunning}>
+          {SUBJECTS.map((s) => <option key={s}>{s}</option>)}
+        </select>
+      </div>
+
+      <div>
+        <label className="label">Pages to Scrape</label>
+        <input
+          type="number" min={1} max={298} value={pages}
+          onChange={(e) => setPages(Math.max(1, Number(e.target.value)))}
+          className="input max-w-[160px]" disabled={isRunning}
+        />
+        <p className="text-xs text-gray-400 mt-1">≈ {pages * 10} MCQs · each page has ~10 questions</p>
+      </div>
+
+      <button
+        onClick={start}
+        disabled={starting || isRunning}
+        className="btn-primary w-full py-3 gap-2"
+      >
+        <Globe size={16} />
+        {isRunning ? 'Scraping in progress…' : starting ? 'Starting…' : 'Start Scraping'}
+      </button>
+
+      {job && (
+        <div className={cn(
+          'rounded-2xl border p-4 space-y-3',
+          job.status === 'done'    ? 'bg-green-50 dark:bg-green-900/20 border-green-100 dark:border-green-800' :
+          job.status === 'error'   ? 'bg-red-50 dark:bg-red-900/20 border-red-100 dark:border-red-800' :
+                                     'bg-blue-50 dark:bg-blue-900/20 border-blue-100 dark:border-blue-800',
+        )}>
+          <div className="flex items-center justify-between">
+            <span className={cn('text-sm font-bold',
+              job.status === 'done'  ? 'text-green-700 dark:text-green-300' :
+              job.status === 'error' ? 'text-red-700 dark:text-red-300' :
+                                       'text-blue-700 dark:text-blue-300',
+            )}>
+              {job.status === 'done' ? '✅ Complete' : job.status === 'error' ? '❌ Error' : '⏳ Scraping…'}
+            </span>
+            {isRunning && (
+              <span className="text-xs text-blue-500 font-medium">
+                Page {job.page} / {job.total_pages}
+              </span>
+            )}
+          </div>
+
+          <div className="flex gap-5 text-sm">
+            <div>
+              <span className="text-gray-500 dark:text-gray-400">Added  </span>
+              <span className="font-bold text-gray-900 dark:text-white">{job.added}</span>
+            </div>
+            {job.errors > 0 && (
+              <div>
+                <span className="text-gray-500 dark:text-gray-400">Errors  </span>
+                <span className="font-bold text-red-600 dark:text-red-400">{job.errors}</span>
+              </div>
+            )}
+          </div>
+
+          {isRunning && (
+            <div className="w-full bg-blue-100 dark:bg-blue-900/40 rounded-full h-2 overflow-hidden">
+              <div
+                className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          )}
+
+          {job.message && (
+            <p className="text-xs text-red-600 dark:text-red-400">{job.message}</p>
+          )}
+          {job.last_error && (
+            <p className="text-xs text-orange-600 dark:text-orange-400 font-mono break-all">Last error: {job.last_error}</p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+type AdminTab = 'overview' | 'users' | 'essays' | 'mcqs' | 'scrape'
 
 function AdminContent() {
   const [tab, setTab] = useState<AdminTab>('overview')
@@ -192,14 +333,17 @@ function AdminContent() {
     { id: 'users', label: 'Users', icon: '👥' },
     { id: 'essays', label: 'Essays', icon: '✍️' },
     { id: 'mcqs', label: 'MCQ Import', icon: '📥' },
+    { id: 'scrape', label: 'Scrape MCQs', icon: '🕷' },
   ]
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="page-header">
-        <h1 className="page-title flex items-center gap-2"><ShieldCheck size={26} className="text-primary" /> Admin Panel</h1>
-        <p className="page-sub">Manage users, essays, and content</p>
-      </div>
+      <PageHeader
+        icon={<ShieldCheck size={22} className="text-white" />}
+        title="Admin Panel"
+        subtitle="Manage users, essays, and content"
+        badge="Admin"
+      />
       <div className="tabs w-fit flex-wrap">
         {tabs.map(({ id, label, icon }) => (
           <button key={id} onClick={() => setTab(id)} className={tab === id ? 'tab-active' : 'tab'}>
@@ -211,6 +355,7 @@ function AdminContent() {
       {tab === 'users' && <UsersTab />}
       {tab === 'essays' && <EssaysTab />}
       {tab === 'mcqs' && <McqImportTab />}
+      {tab === 'scrape' && <ScrapeMcqsTab />}
     </div>
   )
 }

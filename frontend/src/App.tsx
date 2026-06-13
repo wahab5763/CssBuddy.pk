@@ -5,13 +5,11 @@ import { Landing } from '@/pages/Landing'
 import { Dashboard } from '@/pages/Dashboard'
 import { StudyPlan } from '@/pages/StudyPlan'
 import { Practice } from '@/pages/Practice'
-import { Books } from '@/pages/Books'
+import { Shop } from '@/pages/Shop'
 import { PastPapers } from '@/pages/PastPapers'
 import { News } from '@/pages/News'
-import { PremiumNotes } from '@/pages/PremiumNotes'
 import { StudyPartner } from '@/pages/StudyPartner'
 import { Messages } from '@/pages/Messages'
-import { EssayWriting } from '@/pages/EssayWriting'
 import { AdminPanel } from '@/pages/AdminPanel'
 import { usePersistentSession } from '@/hooks/usePersistentSession'
 import { applyStoredTheme } from '@/store/themeStore'
@@ -34,14 +32,12 @@ function AppRoutes() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/study-plan" element={<StudyPlan />} />
         <Route path="/practice" element={<Practice />} />
-        <Route path="/books" element={<Books />} />
+        <Route path="/shop" element={<Shop />} />
         <Route path="/past-papers" element={<PastPapers />} />
         <Route path="/news" element={<News />} />
-        <Route path="/premium" element={<PremiumNotes />} />
         <Route path="/partner" element={<StudyPartner />} />
         <Route path="/messages" element={<Messages />} />
-        <Route path="/essay" element={<EssayWriting />} />
-        <Route path="/admin" element={<AdminPanel />} />
+<Route path="/admin" element={<AdminPanel />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

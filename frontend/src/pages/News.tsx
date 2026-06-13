@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { newsApi } from '@/api/news'
 import { ExternalLink, Newspaper, Clock } from 'lucide-react'
+import { PageHeader } from '@/components/common/PageHeader'
 import type { NewsArticle } from '@/types'
 import { cn } from '@/lib/utils'
 
@@ -58,12 +59,11 @@ export function News() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="page-header">
-        <h1 className="page-title flex items-center gap-2">
-          <Newspaper size={26} className="text-sky-500" /> News & Current Affairs
-        </h1>
-        <p className="page-sub">Stay updated with the latest news relevant to your CSS/PMS preparation</p>
-      </div>
+      <PageHeader
+        icon={<Newspaper size={22} className="text-white" />}
+        title="News & Current Affairs"
+        subtitle="Stay updated with the latest news relevant to your CSS/PMS preparation"
+      />
 
       {/* Filter chips */}
       <div className="flex flex-wrap gap-2">

@@ -20,4 +20,11 @@ export const adminApi = {
   createTopic: (data: Record<string, unknown>) => apiClient.post('/api/admin/topics', data),
   updateTopic: (id: number, data: Record<string, unknown>) => apiClient.patch(`/api/admin/topics/${id}`, data),
   deleteTopic: (id: number) => apiClient.delete(`/api/admin/topics/${id}`),
+  scrapeMcqs: (subject: string, pages: number) => {
+    const form = new FormData()
+    form.append('subject', subject)
+    form.append('pages', String(pages))
+    return apiClient.post('/api/admin/mcqs/scrape', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+  },
+  scrapeStatus: (jobId: string) => apiClient.get(`/api/admin/mcqs/scrape/status/${jobId}`),
 }

@@ -16,12 +16,10 @@ const NAV = [
   { to: '/dashboard',     label: 'Home'           },
   { to: '/study-plan',    label: 'Study Plan'      },
   { to: '/practice',      label: 'Practice'        },
-  { to: '/books',         label: 'Books Market'    },
+  { to: '/shop',          label: 'Shop'            },
   { to: '/past-papers',   label: 'Past Papers'     },
   { to: '/news',          label: 'News & Affairs'  },
-  { to: '/premium',       label: 'Premium Notes'   },
   { to: '/partner',       label: 'Study Partner'   },
-  { to: '/essay',         label: 'Essay Writing'   },
 ]
 
 interface TopbarProps { onMenuToggle: () => void; isMobileOpen: boolean }

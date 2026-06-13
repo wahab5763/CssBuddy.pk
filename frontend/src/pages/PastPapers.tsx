@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '@/api/client'
 import { FileText, Download, X, BookOpen, Calendar, ChevronRight, ExternalLink } from 'lucide-react'
+import { PageHeader } from '@/components/common/PageHeader'
 import { cn } from '@/lib/utils'
 
 /* ── Helpers ─────────────────────────────────────────── */
@@ -113,13 +114,11 @@ export function PastPapers() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header */}
-      <div className="page-header">
-        <h1 className="page-title flex items-center gap-2">
-          <FileText size={26} className="text-red-500" /> Past Papers
-        </h1>
-        <p className="page-sub">CSS/PMS examination papers from 2016 to 2023 — view or download instantly</p>
-      </div>
+      <PageHeader
+        icon={<FileText size={22} className="text-white" />}
+        title="Past Papers"
+        subtitle="CSS/PMS examination papers from 2016 to 2023 — view or download instantly"
+      />
 
       {/* Stats row */}
       {!isLoading && subjects.length > 0 && (

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '@/api/client'
 import { Star, Eye, MessageCircle, Mail, Shield, Lock, FileText, X, Download, ExternalLink, Zap, CheckCircle } from 'lucide-react'
+import { PageHeader } from '@/components/common/PageHeader'
 import { cn } from '@/lib/utils'
 
 interface NoteFile { filename: string; display_name: string; size: number }
@@ -144,13 +145,12 @@ export function PremiumNotes() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Header */}
-      <div className="page-header">
-        <h1 className="page-title flex items-center gap-2">
-          <Star size={26} className="text-yellow-500 fill-yellow-500" /> Premium Notes
-        </h1>
-        <p className="page-sub">Curated CSS/PMS screening & MPT preparation material — free preview, instant delivery after purchase</p>
-      </div>
+      <PageHeader
+        icon={<Star size={22} className="text-white fill-white/80" />}
+        title="Premium Notes"
+        subtitle="Curated CSS/PMS screening & MPT preparation material — free preview, instant delivery after purchase"
+        badge="Premium"
+      />
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
 

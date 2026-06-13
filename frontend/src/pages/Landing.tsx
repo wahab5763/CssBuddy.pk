@@ -5,7 +5,7 @@ import { AuthModal } from '@/components/auth/AuthModal'
 import {
   BookOpen, FileText, Star, Users, GraduationCap, Trophy,
   CheckCircle, ArrowRight, Phone, Mail, MapPin, Search,
-  BookMarked, PenLine, Calendar, Newspaper, Clock, Award,
+  ShoppingBag, Calendar, Newspaper, Clock, Award,
   ChevronLeft, ChevronRight,
 } from 'lucide-react'
 
@@ -215,12 +215,10 @@ function Navbar({ onOpen }: { onOpen: () => void }) {
     { label: 'Home',          route: '/'            },
     { label: 'Study Plan',    route: '/study-plan'  },
     { label: 'Practice',      route: '/practice'    },
-    { label: 'Books Market',  route: '/books'       },
+    { label: 'Shop',          route: '/shop'        },
     { label: 'Past Papers',   route: '/past-papers' },
     { label: 'News & Affairs',route: '/news'        },
-    { label: 'Premium Notes', route: '/premium'     },
     { label: 'Study Partner', route: '/partner'     },
-    { label: 'Essay Writing', route: '/essay'       },
   ]
 
   return (
@@ -567,11 +565,9 @@ function CoursesSection() {
   const ALL_MODULES = [
     { title: 'MCQ Practice',      tag: 'Practice',  icon: BookOpen,   grad: `linear-gradient(135deg,${TEAL},#2D9E95)`,  lessons: '5000+ MCQs',   route: '/practice'   },
     { title: 'Past Papers',       tag: 'Resources', icon: FileText,   grad: 'linear-gradient(135deg,#0369A1,#38BDF8)',  lessons: '150+ Papers',  route: '/past-papers' },
-    { title: 'Premium Notes',     tag: 'Premium',   icon: Star,       grad: 'linear-gradient(135deg,#92400E,#F59E0B)',  lessons: 'Expert Notes', route: '/premium'    },
+    { title: 'CssBuddy Shop',     tag: 'Shop',      icon: ShoppingBag,grad: 'linear-gradient(135deg,#92400E,#F59E0B)',  lessons: 'Books & Notes',route: '/shop'      },
     { title: 'Study Partner',     tag: 'Community', icon: Users,      grad: 'linear-gradient(135deg,#5B21B6,#A855F7)',  lessons: '2K+ Users',    route: '/partner'    },
-    { title: 'Essay Writing',     tag: 'Practice',  icon: PenLine,    grad: 'linear-gradient(135deg,#9D174D,#F472B6)',  lessons: 'PDF Upload',   route: '/essay'      },
     { title: 'News & Affairs',    tag: 'Current',   icon: Newspaper,  grad: 'linear-gradient(135deg,#065F46,#34D399)',  lessons: 'Daily Feed',   route: '/news'       },
-    { title: 'Books Marketplace', tag: 'Market',    icon: BookMarked, grad: 'linear-gradient(135deg,#78350F,#FBBF24)',  lessons: 'Buy & Sell',   route: '/books'      },
     { title: 'Study Plan',        tag: 'Planning',  icon: Calendar,   grad: 'linear-gradient(135deg,#1E3A5F,#60A5FA)',  lessons: '12 Months',    route: '/study-plan' },
   ]
 
@@ -679,7 +675,6 @@ function JoinSection({ onOpen }: { onOpen: () => void }) {
                 'Unlimited MCQ practice for all subjects',
                 'Access to 8 years of past papers',
                 'Study partner matching by optional subjects',
-                'Essay submission with expert feedback',
                 'Daily current affairs news feed',
                 'Progress tracking and milestone planner',
               ].map(p => (
@@ -839,8 +834,8 @@ function Footer({ onOpen }: { onOpen: () => void }) {
               </div>
             </div>
             {[
-              { t: 'Modules',   ls: ['MCQ Practice', 'Past Papers', 'Premium Notes', 'Essay Writing'] },
-              { t: 'Community', ls: ['Study Partner', 'Books Market', 'News & Affairs', 'Study Plan']  },
+              { t: 'Modules',   ls: ['MCQ Practice', 'Past Papers', 'CssBuddy Shop', 'Study Plan'] },
+              { t: 'Community', ls: ['Study Partner', 'Study Plan', 'News & Affairs', 'Practice']     },
               { t: 'Contact',   ls: ['cssbuddy.pk@gmail.com', '+92 333 2531119', 'Karachi, Pakistan', 'Mon–Sat 9am–6pm'] },
             ].map(({ t, ls }) => (
               <div key={t}>

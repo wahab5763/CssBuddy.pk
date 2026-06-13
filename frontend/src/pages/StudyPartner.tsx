@@ -1,309 +1,104 @@
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useAuthStore } from '@/store/authStore'
 import { partnerApi, chatWsUrl } from '@/api/partner'
 import { apiClient } from '@/api/client'
-import { useAuthStore } from '@/store/authStore'
 import { ProtectedRoute } from '@/components/common/ProtectedRoute'
-import { Users, MessageSquare, Clock, Send, ArrowLeft, MessageCircle } from 'lucide-react'
-import type { PartnerUser } from '@/types'
+import { PageHeader } from '@/components/common/PageHeader'
 import { cn } from '@/lib/utils'
+import {
+  Users, MessageSquare, Send, ArrowLeft, MessageCircle,
+  UserPlus, Search, CheckCheck, X, Compass, Inbox,
+} from 'lucide-react'
 
-const TEAL   = '#1D6660'
-const ORANGE = '#F97316'
+/* ── Colour tokens ─────────────────────────────────────── */
+const TEAL  = '#1D6660'
+const TEAL2 = '#2D9E95'
 
-type Tab = 'discover' | 'requests' | 'messages'
+/* ── Local types ───────────────────────────────────────── */
+type Tab = 'discover' | 'requests' | 'chats'
 
-/* ── Shared helpers ─────────────────────────────────────────── */
-function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' | 'lg' }) {
-  const sz = { sm: 'w-8 h-8 text-xs', md: 'w-10 h-10 text-sm', lg: 'w-14 h-14 text-lg' }
-  return (
-    <div className={cn('rounded-full bg-gradient-brand flex items-center justify-center text-white font-bold shrink-0', sz[size])}>
-      {name[0].toUpperCase()}
-    </div>
-  )
+interface PartnerInfo {
+  id: number; name: string; city: string | null
+  prep_level: string | null; exam_type: string | null
+  optional_subjects: string[]; shared_subjects: string[]; shared_count: number
 }
-
-interface PartnerCardData extends PartnerUser {
-  shared_subjects: string[]
-  shared_count: number
-}
-
-function PartnerCard({ user, onConnect }: { user: PartnerCardData; onConnect: (id: number) => void }) {
-  return (
-    <div className="card p-5 flex flex-col gap-4">
-      <div className="flex items-start gap-3">
-        <Avatar name={user.name} />
-        <div className="flex-1 min-w-0">
-          <p className="font-bold text-gray-900 dark:text-white truncate">{user.name}</p>
-          <p className="text-xs text-gray-400">{user.city || 'No city'} · {user.exam_type || 'CSS'}</p>
-          {user.prep_level && <span className="badge-primary mt-1 text-[10px]">{user.prep_level}</span>}
-        </div>
-        {user.shared_count > 0 && (
-          <div className="text-right shrink-0">
-            <span className="text-lg font-black text-primary">{user.shared_count}</span>
-            <p className="text-[10px] text-gray-400 leading-tight">shared<br/>subjects</p>
-          </div>
-        )}
-      </div>
-
-      {/* Shared subjects highlight */}
-      {user.shared_subjects.length > 0 && (
-        <div className="bg-primary/5 rounded-xl px-3 py-2">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-primary/70 mb-1.5">Common Optionals</p>
-          <div className="flex flex-wrap gap-1">
-            {user.shared_subjects.map((s) => (
-              <span key={s} className="badge bg-primary/10 text-primary text-[10px]">{s}</span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Their optionals */}
-      {user.optional_subjects.length > 0 && (
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1.5">Their Optionals</p>
-          <div className="flex flex-wrap gap-1">
-            {user.optional_subjects.slice(0, 4).map((s) => (
-              <span key={s} className={cn('badge text-[10px]', user.shared_subjects.includes(s) ? 'bg-primary/10 text-primary' : 'badge-gray')}>
-                {s}
-              </span>
-            ))}
-            {user.optional_subjects.length > 4 && (
-              <span className="badge-gray text-[10px]">+{user.optional_subjects.length - 4}</span>
-            )}
-          </div>
-        </div>
-      )}
-
-      <button onClick={() => onConnect(user.id)} className="btn-outline w-full gap-1.5 hover:border-primary hover:text-primary hover:bg-primary/5">
-        <UserPlus size={14} /> Connect
-      </button>
-    </div>
-  )
-}
-
-/* ── Discover Tab ───────────────────────────────────────────── */
-function DiscoverTab() {
-  const qc = useQueryClient()
-  const [filterSubject, setFilterSubject] = useState('')
-  const [page, setPage] = useState(1)
-  const user = useAuthStore((s) => s.user)
-
-  const { data: subjectList } = useQuery({
-    queryKey: ['all-subjects'],
-    queryFn: () => subjectsApi.all().then((r) => r.data),
-    staleTime: Infinity,
-  })
-
-  const { data, isLoading } = useQuery({
-    queryKey: ['partner-discover', filterSubject, page],
-    queryFn: () => partnerApi.discover(page).then((r) => r.data),
-    // Note: filter is server-side param — include it:
-    // We pass it as a query param separately:
-  })
-
-  // Actually let's fetch with filter:
-  const { data: filteredData, isLoading: filteredLoading } = useQuery({
-    queryKey: ['partner-discover-filtered', filterSubject, page],
-    queryFn: async () => {
-      const res = await apiClient.get('/api/partner/discover', {
-        params: { optional_subject: filterSubject || undefined, page, per_page: 12 },
-      })
-      return res.data
-    },
-  })
-
-  const display = filteredData ?? data
-  const loading = filteredLoading && isLoading
-
-  const connect = async (id: number) => {
-    await partnerApi.sendRequest(id)
-    qc.invalidateQueries({ queryKey: ['partner-discover-filtered'] })
-  }
-
-  const myOptionals = user?.optional_subjects ?? []
-
-  return (
-    <div className="space-y-4">
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1 sm:max-w-xs">
-          <select value={filterSubject} onChange={(e) => { setFilterSubject(e.target.value); setPage(1) }} className="select w-full">
-            <option value="">All subjects</option>
-            {(subjectList?.optional ?? []).map((s) => (
-              <option key={s} value={s}>{s}{myOptionals.includes(s) ? ' ★' : ''}</option>
-            ))}
-          </select>
-        </div>
-        {filterSubject && (
-          <button onClick={() => setFilterSubject('')} className="btn-ghost btn-sm text-gray-400">
-            Clear filter
-          </button>
-        )}
-      </div>
-
-      {myOptionals.length === 0 && (
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-xl p-4 flex gap-3">
-          <span className="text-yellow-500 text-lg shrink-0">💡</span>
-          <div className="text-sm text-yellow-700 dark:text-yellow-300">
-            <strong>Tip:</strong> Add your optional subjects from the profile menu (top-right) to get matched with aspirants who share the same optionals. They'll appear sorted by most shared subjects.
-          </div>
-        </div>
-      )}
-
-      {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[...Array(6)].map((_, i) => <div key={i} className="h-52 skeleton" />)}
-        </div>
-      ) : (display?.items ?? []).length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-icon"><Users size={28} /></div>
-          <p className="empty-title">No aspirants found</p>
-          <p className="empty-sub">{filterSubject ? 'No one has selected this subject yet' : 'Check back as more aspirants join'}</p>
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {(display?.items ?? []).map((u: PartnerCardData) => <PartnerCard key={u.id} user={u} onConnect={connect} />)}
-          </div>
-          {display?.pages > 1 && (
-            <div className="flex justify-center gap-2">
-              <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="btn-outline btn-sm disabled:opacity-40">Prev</button>
-              <span className="px-3 py-1.5 text-sm font-medium bg-primary/10 text-primary rounded-xl">Page {page}/{display.pages}</span>
-              <button onClick={() => setPage((p) => Math.min(display.pages, p + 1))} disabled={page === display.pages} className="btn-outline btn-sm disabled:opacity-40">Next</button>
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  )
-}
-
-/* ── Requests Tab ───────────────────────────────────────────── */
-function RequestsTab() {
-  const qc = useQueryClient()
-  const { data: incoming = [] } = useQuery({ queryKey: ['partner-incoming'], queryFn: () => partnerApi.incoming().then((r) => r.data) })
-  const { data: sent = [] } = useQuery({ queryKey: ['partner-sent'], queryFn: () => partnerApi.sent().then((r) => r.data) })
-
-  const accept = async (id: number) => { await partnerApi.accept(id); qc.invalidateQueries() }
-  const reject = async (id: number) => { await partnerApi.reject(id); qc.invalidateQueries() }
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h3 className="section-title"><Clock size={18} className="text-yellow-500" /> Incoming ({incoming.length})</h3>
-        {incoming.length === 0 ? (
-          <div className="card p-4 text-center text-sm text-gray-400">No pending requests</div>
-        ) : incoming.map((r: { id: number; requester: PartnerCardData; icebreaker: string }) => (
-          <div key={r.id} className="card p-4 mb-2">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <Avatar name={r.requester.name} size="sm" />
-                <div>
-                  <p className="font-semibold text-sm">{r.requester.name}</p>
-                  <p className="text-xs text-gray-400">{r.requester.city} · {r.requester.exam_type}</p>
-                  {r.icebreaker && <p className="text-xs text-gray-400 italic mt-0.5">"{r.icebreaker}"</p>}
-                </div>
-              </div>
-              <div className="flex gap-2 shrink-0">
-                <button onClick={() => accept(r.id)} className="btn-sm bg-green-500 hover:bg-green-600 text-white rounded-xl px-3 gap-1">✓ Accept</button>
-                <button onClick={() => reject(r.id)} className="btn-danger btn-sm gap-1">✕</button>
-              </div>
-            </div>
-            {r.requester.shared_subjects?.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1">
-                {r.requester.shared_subjects.map((s) => <span key={s} className="badge-primary text-[10px]">{s}</span>)}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-
-      <div>
-        <h3 className="section-title"><Send size={18} className="text-blue-500" /> Sent ({sent.length})</h3>
-        {sent.length === 0 ? (
-          <div className="card p-4 text-center text-sm text-gray-400">No sent requests</div>
-        ) : sent.map((r: { id: number; receiver: PartnerCardData }) => (
-          <div key={r.id} className="card flex items-center justify-between p-4 mb-2">
-            <div className="flex items-center gap-3">
-              <Avatar name={r.receiver.name} size="sm" />
-              <div>
-                <p className="font-semibold text-sm">{r.receiver.name}</p>
-                <p className="text-xs text-gray-400">{r.receiver.city}</p>
-              </div>
-            </div>
-            <span className="badge-yellow">Pending</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-/* ── Live chat helpers ──────────────────────────────────────── */
-interface PChatMessage {
+interface Conn { id: number; status: string; created_at: string; partner: PartnerInfo }
+interface Msg {
   id: number; connection_id: number; sender_id: number; sender_name: string
-  content: string; sent_at: string; is_read: boolean
-  _mine?: true   // local-only flag: set on messages I sent this session
+  content: string; sent_at: string; is_read: boolean; _mine?: true
 }
 
-interface PConn {
-  id: number; status: string; created_at: string
-  partner: { id: number; name: string; city: string | null; prep_level: string | null; exam_type: string | null; optional_subjects: string[]; shared_subjects: string[] }
-}
-
+/* ── Helpers ───────────────────────────────────────────── */
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true })
 }
 function fmtDate(iso: string) {
   const d = new Date(iso), now = new Date()
-  const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1)
+  const yd = new Date(now); yd.setDate(now.getDate() - 1)
   if (d.toDateString() === now.toDateString()) return 'Today'
-  if (d.toDateString() === yesterday.toDateString()) return 'Yesterday'
+  if (d.toDateString() === yd.toDateString()) return 'Yesterday'
   return d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })
 }
-function sameDay(a: string, b: string) {
-  return new Date(a).toDateString() === new Date(b).toDateString()
+function sameDay(a: string, b: string) { return new Date(a).toDateString() === new Date(b).toDateString() }
+function initials(name: string) { return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase() }
+
+const GRAD_POOL = [
+  'linear-gradient(135deg,#1D6660,#2D9E95)',
+  'linear-gradient(135deg,#3730a3,#6366f1)',
+  'linear-gradient(135deg,#7c2d12,#f97316)',
+  'linear-gradient(135deg,#14532d,#16a34a)',
+  'linear-gradient(135deg,#4c1d95,#a855f7)',
+  'linear-gradient(135deg,#0c4a6e,#0ea5e9)',
+  'linear-gradient(135deg,#713f12,#eab308)',
+]
+function avatarGrad(name: string) {
+  let h = 0
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0
+  return GRAD_POOL[h % GRAD_POOL.length]
 }
 
+function Avatar({ name, size = 'md' }: { name: string; size?: 'xs' | 'sm' | 'md' | 'lg' }) {
+  const sz = { xs: 'w-6 h-6 text-[9px]', sm: 'w-8 h-8 text-[11px]', md: 'w-10 h-10 text-sm', lg: 'w-12 h-12 text-base' }
+  return (
+    <div className={cn('rounded-full flex items-center justify-center text-white font-bold shrink-0', sz[size])}
+      style={{ background: avatarGrad(name) }}>
+      {initials(name)}
+    </div>
+  )
+}
+
+/* ════════════════════════════════════════════════════════
+   WEBSOCKET HOOK
+   ════════════════════════════════════════════════════════ */
 function useChatSocket(
-  connId: number | null,
-  token: string | null,
-  onMessage: (msg: PChatMessage) => void,
-  onTyping: () => void,
+  connId: number | null, token: string | null,
+  onMessage: (m: Msg) => void, onTyping: () => void,
 ) {
-  const wsRef     = useRef<WebSocket | null>(null)
-  const retryRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const activeRef = useRef(true)
-  // Refs keep latest callbacks without triggering reconnect
-  const msgRef  = useRef(onMessage)
-  const typeRef = useRef(onTyping)
-  useEffect(() => { msgRef.current  = onMessage })
-  useEffect(() => { typeRef.current = onTyping  })
+  const wsRef    = useRef<WebSocket | null>(null)
+  const retryRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const alive    = useRef(true)
+  const msgCb    = useRef(onMessage); useEffect(() => { msgCb.current  = onMessage })
+  const typeCb   = useRef(onTyping);  useEffect(() => { typeCb.current = onTyping  })
 
   const connect = useCallback(() => {
-    if (!connId || !token || !activeRef.current) return
+    if (!connId || !token || !alive.current) return
     const ws = new WebSocket(chatWsUrl(connId, token))
-    ws.onopen = () => { if (retryRef.current) { clearTimeout(retryRef.current); retryRef.current = null } }
+    ws.onopen    = () => { if (retryRef.current) { clearTimeout(retryRef.current); retryRef.current = null } }
     ws.onmessage = (e) => {
       try {
-        const data = JSON.parse(e.data)
-        if (data.type === 'message') msgRef.current(data as PChatMessage)
-        if (data.type === 'typing')  typeRef.current()
+        const d = JSON.parse(e.data)
+        if (d.type === 'message') msgCb.current(d as Msg)
+        if (d.type === 'typing')  typeCb.current()
       } catch {}
     }
-    ws.onclose = () => { if (activeRef.current) retryRef.current = setTimeout(connect, 3000) }
+    ws.onclose = () => { if (alive.current) retryRef.current = setTimeout(connect, 3000) }
     wsRef.current = ws
-  }, [connId, token]) // stable — only reconnects when conn/token change
+  }, [connId, token])
 
   useEffect(() => {
-    activeRef.current = true
-    connect()
-    return () => {
-      activeRef.current = false
-      if (retryRef.current) clearTimeout(retryRef.current)
-      wsRef.current?.close()
-    }
+    alive.current = true; connect()
+    return () => { alive.current = false; if (retryRef.current) clearTimeout(retryRef.current); wsRef.current?.close() }
   }, [connect])
 
   return useCallback((payload: object) => {
@@ -312,36 +107,51 @@ function useChatSocket(
   }, [])
 }
 
-function PartnerChatPanel({ conn }: { conn: PConn }) {
-  // Read userId directly from store — never rely on a potentially stale prop
-  const myUser  = useAuthStore((s) => s.user)
-  const myId    = myUser?.id ?? 0
-  const qc      = useQueryClient()
-  const token   = useAuthStore((s) => s.accessToken)
-  const [messages, setMessages] = useState<PChatMessage[]>([])
+/* ════════════════════════════════════════════════════════
+   CHAT WINDOW (right panel)
+   ════════════════════════════════════════════════════════ */
+function ChatWindow({ conn }: { conn: Conn }) {
+  const myUser    = useAuthStore(s => s.user)
+  const myId      = myUser?.id ?? -1
+  const myName    = myUser?.name ?? ''
+  const token     = useAuthStore(s => s.accessToken)
+  const qc        = useQueryClient()
+
+  const [messages, setMessages] = useState<Msg[]>([])
   const [text, setText]         = useState('')
   const [typing, setTyping]     = useState(false)
   const [sending, setSending]   = useState(false)
+
   const bottomRef   = useRef<HTMLDivElement>(null)
+  const areaRef     = useRef<HTMLTextAreaElement>(null)
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Fetch history once on mount
+  // Load history whenever the conversation changes
   useEffect(() => {
-    partnerApi.messages(conn.id)
-      .then(r => setMessages(r.data as PChatMessage[]))
-      .catch(() => {})
+    setMessages([])
+    partnerApi.messages(conn.id).then(r => setMessages(r.data as Msg[])).catch(() => {})
     partnerApi.markRead(conn.id).catch(() => {})
   }, [conn.id])
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+  // Scroll to bottom on new messages
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, typing])
 
-  // Only receive messages from the OTHER person — skip our own WS echo
-  const handleIncoming = useCallback((msg: PChatMessage) => {
-    if (Number(msg.sender_id) === myId) return
+  // Auto-grow textarea
+  const growArea = () => {
+    const el = areaRef.current; if (!el) return
+    el.style.height = 'auto'
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px'
+  }
+
+  const handleIncoming = useCallback((msg: Msg) => {
+    if (Number(msg.sender_id) === myId) return  // skip our own WS echo
     setMessages(prev => prev.some(m => m.id === msg.id) ? prev : [...prev, msg])
     setTyping(false)
     qc.invalidateQueries({ queryKey: ['partner-connections'] })
-  }, [myId, qc])
+    partnerApi.markRead(conn.id).catch(() => {})
+  }, [myId, conn.id, qc])
 
   const handleTyping = useCallback(() => {
     setTyping(true)
@@ -356,23 +166,24 @@ function PartnerChatPanel({ conn }: { conn: PConn }) {
     if (!content || sending) return
     setSending(true)
     setText('')
+    if (areaRef.current) areaRef.current.style.height = 'auto'
 
-    // Add immediately with _mine flag — guaranteed green regardless of any ID issue
     const tempId = -Date.now()
+    // Optimistic add — flagged _mine so isMe check is always correct
     setMessages(prev => [...prev, {
       id: tempId, connection_id: conn.id, sender_id: myId,
-      sender_name: '', content, sent_at: new Date().toISOString(),
+      sender_name: myName, content, sent_at: new Date().toISOString(),
       is_read: true, _mine: true,
     }])
 
     try {
       const res = await partnerApi.sendMessage(conn.id, content)
-      const saved = { ...(res.data as PChatMessage), _mine: true as const }
-      setMessages(prev => prev.map(m => m.id === tempId ? saved : m))
+      setMessages(prev => prev.map(m => m.id === tempId ? { ...(res.data as Msg), _mine: true } : m))
     } catch {
       setMessages(prev => prev.filter(m => m.id !== tempId))
     }
     setSending(false)
+    areaRef.current?.focus()
   }
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -381,35 +192,34 @@ function PartnerChatPanel({ conn }: { conn: PConn }) {
   }
 
   const p = conn.partner
+
   return (
-    <div className="flex-1 flex flex-col rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm" style={{ background: 'white' }}>
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
 
-      {/* ── Header ── */}
-      <div className="flex items-center gap-3 px-5 py-3.5 shrink-0 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800">
-        {/* Avatar + online dot */}
+      {/* ─── Chat header ─── */}
+      <div className="flex items-center gap-3 px-5 py-3.5 shrink-0 shadow-sm"
+        style={{ background: `linear-gradient(135deg, ${TEAL} 0%, ${TEAL2} 100%)` }}>
         <div className="relative shrink-0">
-          <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm"
-            style={{ background: `linear-gradient(135deg, ${TEAL}, #2D9E95)` }}>
-            {p.name[0].toUpperCase()}
-          </div>
-          <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 rounded-full border-2 border-white dark:border-gray-900" />
+          <Avatar name={p.name} size="md" />
+          <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 rounded-full border-2 border-white" />
         </div>
-
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-gray-900 dark:text-white text-sm leading-tight">{p.name}</p>
-          <p className="text-[11px] text-green-500 font-medium mt-0.5">
-            Active now{p.city ? ` · ${p.city}` : ''}
+          <p className="font-bold text-white text-sm leading-tight">{p.name}</p>
+          <p className="text-white/65 text-[11px] mt-0.5">
+            {p.city ? `${p.city} · ` : ''}{p.exam_type || 'CSS'} aspirant
           </p>
         </div>
-
         {p.shared_subjects.length > 0 && (
-          <div className="hidden sm:flex gap-1.5 flex-wrap justify-end max-w-[200px]">
-            {p.shared_subjects.slice(0, 3).map((s) => (
-              <span key={s} className="text-[10px] font-semibold px-2 py-0.5 rounded-full text-white"
-                style={{ background: TEAL }}>{s}</span>
+          <div className="hidden sm:flex flex-wrap gap-1 justify-end max-w-[200px]">
+            {p.shared_subjects.slice(0, 3).map(s => (
+              <span key={s} className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                style={{ background: 'rgba(255,255,255,0.18)', color: 'white', border: '1px solid rgba(255,255,255,0.28)' }}>
+                {s.split(' ')[0]}
+              </span>
             ))}
             {p.shared_subjects.length > 3 && (
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500">
+              <span className="text-[10px] px-2 py-0.5 rounded-full"
+                style={{ background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.75)' }}>
                 +{p.shared_subjects.length - 3}
               </span>
             )}
@@ -417,85 +227,103 @@ function PartnerChatPanel({ conn }: { conn: PConn }) {
         )}
       </div>
 
-      {/* ── Messages area ── */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1"
-        style={{ background: '#f5f7f6' }}>
+      {/* ─── Messages list ─── */}
+      <div className="flex-1 overflow-y-auto px-4 py-3 min-h-0"
+        style={{
+          background: '#e8ede8',
+          backgroundImage: 'radial-gradient(rgba(29,102,96,0.05) 1px, transparent 1px)',
+          backgroundSize: '18px 18px',
+        }}>
 
         {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full gap-3 py-10">
+          <div className="h-full flex flex-col items-center justify-center gap-3 py-16">
             <div className="w-16 h-16 rounded-full flex items-center justify-center"
-              style={{ background: `${TEAL}15` }}>
+              style={{ background: 'rgba(29,102,96,0.12)' }}>
               <MessageCircle size={28} style={{ color: TEAL }} />
             </div>
             <div className="text-center">
-              <p className="text-sm font-semibold text-gray-600 dark:text-gray-300">No messages yet</p>
-              <p className="text-xs text-gray-400 mt-1">Say hello to {p.name.split(' ')[0]}! 👋</p>
+              <p className="font-semibold text-gray-600 text-sm">Say hello to {p.name.split(' ')[0]}! 👋</p>
+              <p className="text-xs text-gray-400 mt-1">You're connected — start the conversation</p>
             </div>
           </div>
         )}
 
         {messages.map((msg, idx) => {
-          const isMe        = msg._mine === true || Number(msg.sender_id) === myId
-          const prevMsg     = messages[idx - 1]
-          const nextMsg     = messages[idx + 1]
-          const prevIsSame  = prevMsg && (prevMsg._mine ? isMe : !isMe && Number(prevMsg.sender_id) === Number(msg.sender_id))
-          const nextIsSame  = nextMsg && (nextMsg._mine ? isMe : !isMe && Number(nextMsg.sender_id) === Number(msg.sender_id))
-          const isLastInGrp = !nextIsSame
-          const showDate    = !prevMsg || !sameDay(prevMsg.sent_at, msg.sent_at)
-          const showTime    = isLastInGrp
-          const showName    = !isMe && !prevIsSame
+          // Determine ownership: _mine flag is authoritative; fall back to sender_id compare
+          const isMe    = msg._mine === true || Number(msg.sender_id) === myId
+          const prev    = messages[idx - 1]
+          const next    = messages[idx + 1]
+          const prevMe  = prev  ? (prev._mine  === true || Number(prev.sender_id)  === myId) : null
+          const nextMe  = next  ? (next._mine  === true || Number(next.sender_id)  === myId) : null
+          // "Same sender as previous/next" means same ownership AND same calendar day
+          const prevSame = prevMe !== null && prevMe === isMe && sameDay(prev!.sent_at, msg.sent_at)
+          const nextSame = nextMe !== null && nextMe === isMe && sameDay(next!.sent_at, msg.sent_at)
+          const isFirst  = !prevSame
+          const isLast   = !nextSame
+          const showDate = !prev || !sameDay(prev.sent_at, msg.sent_at)
 
           return (
             <div key={msg.id}>
               {/* Date separator */}
               {showDate && (
-                <div className="flex items-center gap-3 my-4">
-                  <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
-                  <span className="text-[10px] font-semibold text-gray-400 bg-white dark:bg-gray-800 px-3 py-1 rounded-full border border-gray-200 dark:border-gray-700 shadow-sm">
+                <div className="flex items-center justify-center my-4">
+                  <span className="text-[11px] font-semibold text-gray-500 bg-white/90 px-4 py-1 rounded-full shadow-xs border border-gray-200">
                     {fmtDate(msg.sent_at)}
                   </span>
-                  <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
                 </div>
               )}
 
-              <div className={cn('flex items-end gap-2', isMe ? 'flex-row-reverse' : 'flex-row',
-                prevIsSame ? 'mt-0.5' : 'mt-3')}>
-
-                {/* Partner avatar — only on last in group */}
+              <div className={cn(
+                'flex items-end gap-1.5',
+                isMe ? 'flex-row-reverse' : 'flex-row',
+                isFirst ? 'mt-3' : 'mt-0.5',
+              )}>
+                {/* Partner avatar — only on last bubble in a group */}
                 {!isMe && (
-                  <div className="shrink-0 w-7 self-end mb-1">
-                    {isLastInGrp ? (
-                      <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
-                        style={{ background: `linear-gradient(135deg, ${TEAL}, #2D9E95)` }}>
-                        {p.name[0].toUpperCase()}
-                      </div>
-                    ) : null}
+                  <div className="w-7 shrink-0 self-end mb-0.5">
+                    {isLast
+                      ? <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[9px] font-bold"
+                          style={{ background: avatarGrad(p.name) }}>
+                          {initials(p.name)}
+                        </div>
+                      : null
+                    }
                   </div>
                 )}
 
                 <div className={cn('flex flex-col max-w-[68%]', isMe ? 'items-end' : 'items-start')}>
-                  {showName && (
-                    <p className="text-[10px] font-semibold mb-1 ml-1" style={{ color: TEAL }}>
+                  {/* Partner name — first bubble only */}
+                  {!isMe && isFirst && (
+                    <p className="text-[10px] font-bold mb-1 ml-3" style={{ color: TEAL }}>
                       {msg.sender_name || p.name}
                     </p>
                   )}
 
-                  <div className={cn(
-                    'px-4 py-2.5 text-sm leading-relaxed shadow-sm',
-                    isMe
-                      ? cn('text-white', isLastInGrp ? 'rounded-2xl rounded-br-sm' : 'rounded-2xl')
-                      : cn('bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 border border-gray-100 dark:border-gray-700',
-                          isLastInGrp ? 'rounded-2xl rounded-bl-sm' : 'rounded-2xl'),
-                  )}
-                    style={isMe ? { background: `linear-gradient(135deg, #1D6660, #2D9E95)` } : {}}>
+                  {/* Bubble */}
+                  <div
+                    className={cn(
+                      'px-3.5 py-2 text-sm leading-relaxed break-words shadow-sm',
+                      isMe
+                        ? cn('text-white',
+                            isFirst && isLast  ? 'rounded-2xl rounded-br-[4px]' :
+                            isFirst            ? 'rounded-2xl rounded-br-sm' :
+                            isLast             ? 'rounded-2xl rounded-br-[4px]' : 'rounded-2xl')
+                        : cn('bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100',
+                            isFirst && isLast  ? 'rounded-2xl rounded-bl-[4px]' :
+                            isFirst            ? 'rounded-2xl rounded-bl-sm' :
+                            isLast             ? 'rounded-2xl rounded-bl-[4px]' : 'rounded-2xl'),
+                    )}
+                    style={isMe ? { background: `linear-gradient(135deg, ${TEAL}, ${TEAL2})` } : {}}
+                  >
                     {msg.content}
                   </div>
 
-                  {showTime && (
-                    <p className={cn('text-[10px] text-gray-400 mt-1', isMe ? 'mr-1' : 'ml-1')}>
-                      {fmtTime(msg.sent_at)}
-                      {isMe && <span className="ml-1 text-teal-400">✓</span>}
-                    </p>
+                  {/* Time + read tick — only on last bubble */}
+                  {isLast && (
+                    <div className={cn('flex items-center gap-1 mt-0.5', isMe ? 'mr-1' : 'ml-3')}>
+                      <span className="text-[10px] text-gray-400">{fmtTime(msg.sent_at)}</span>
+                      {isMe && <CheckCheck size={12} className="text-teal-500" />}
+                    </div>
                   )}
                 </div>
               </div>
@@ -505,45 +333,49 @@ function PartnerChatPanel({ conn }: { conn: PConn }) {
 
         {/* Typing indicator */}
         {typing && (
-          <div className="flex items-end gap-2 mt-3">
-            <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
-              style={{ background: `linear-gradient(135deg, ${TEAL}, #2D9E95)` }}>
-              {p.name[0].toUpperCase()}
+          <div className="flex items-end gap-1.5 mt-3">
+            <div className="w-7 h-7 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0"
+              style={{ background: avatarGrad(p.name) }}>
+              {initials(p.name)}
             </div>
-            <div className="flex items-center gap-1.5 px-4 py-3 bg-white dark:bg-gray-800 rounded-2xl rounded-bl-sm border border-gray-100 dark:border-gray-700 shadow-sm">
-              {[0, 1, 2].map((i) => (
+            <div className="flex items-center gap-1.5 px-4 py-3 bg-white dark:bg-gray-800 rounded-2xl rounded-bl-[4px] shadow-sm">
+              {[0, 1, 2].map(i => (
                 <span key={i} className="w-2 h-2 rounded-full bg-gray-400 animate-bounce"
                   style={{ animationDelay: `${i * 160}ms` }} />
               ))}
             </div>
-            <span className="text-[11px] text-gray-400 mb-1">{p.name.split(' ')[0]} is typing…</span>
           </div>
         )}
 
         <div ref={bottomRef} />
       </div>
 
-      {/* ── Input area ── */}
+      {/* ─── Input bar ─── */}
       <div className="shrink-0 bg-white dark:bg-gray-900 border-t border-gray-100 dark:border-gray-800 px-4 py-3">
-        <div className="flex items-end gap-3 bg-gray-50 dark:bg-gray-800 rounded-2xl px-4 py-2.5 border border-gray-200 dark:border-gray-700 focus-within:border-[#1D6660] focus-within:ring-2 focus-within:ring-[#1D6660]/20 transition-all">
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={onKeyDown}
-            placeholder={`Message ${p.name.split(' ')[0]}…`}
-            rows={1}
-            className="flex-1 bg-transparent resize-none text-sm text-gray-800 dark:text-gray-100 placeholder-gray-400 focus:outline-none max-h-24 overflow-y-auto"
-            style={{ lineHeight: '1.6' }}
-          />
-          <button onClick={send} disabled={!text.trim() || sending}
-            className={cn(
-              'shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200',
-              text.trim()
-                ? 'text-white shadow-sm hover:opacity-90 scale-100'
-                : 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed',
-            )}
-            style={text.trim() ? { background: `linear-gradient(135deg, #1D6660, #2D9E95)` } : {}}>
-            <Send size={15} />
+        <div className="flex items-end gap-3">
+          <div className={cn(
+            'flex-1 flex items-end bg-gray-50 dark:bg-gray-800 rounded-2xl px-4 py-2',
+            'border border-gray-200 dark:border-gray-700',
+            'focus-within:border-[#1D6660] focus-within:ring-2 focus-within:ring-[#1D6660]/15 transition-all',
+          )}>
+            <textarea
+              ref={areaRef}
+              value={text}
+              onChange={e => { setText(e.target.value); growArea() }}
+              onKeyDown={onKeyDown}
+              placeholder={`Message ${p.name.split(' ')[0]}…`}
+              rows={1}
+              className="flex-1 bg-transparent resize-none text-sm text-gray-800 dark:text-gray-100 placeholder-gray-400 focus:outline-none py-1"
+              style={{ lineHeight: '1.6', maxHeight: '120px', overflowY: 'auto' }}
+            />
+          </div>
+          <button
+            onClick={send}
+            disabled={!text.trim() || sending}
+            className="w-11 h-11 rounded-full flex items-center justify-center text-white shrink-0 shadow-sm transition-all duration-200 hover:scale-105 active:scale-95 disabled:scale-100"
+            style={{ background: text.trim() ? `linear-gradient(135deg, ${TEAL}, ${TEAL2})` : '#d1d5db' }}
+          >
+            <Send size={16} />
           </button>
         </div>
         <p className="text-center text-[10px] text-gray-300 dark:text-gray-600 mt-1.5">
@@ -554,93 +386,114 @@ function PartnerChatPanel({ conn }: { conn: PConn }) {
   )
 }
 
-/* ── Messages Tab ───────────────────────────────────────────── */
-function MessagesTab() {
-  const [activeId, setActiveId]  = useState<number | null>(null)
-  const [showChat, setShowChat]  = useState(false)
+/* ════════════════════════════════════════════════════════
+   CHATS TAB — WhatsApp-style layout
+   ════════════════════════════════════════════════════════ */
+function ChatsTab() {
+  const [activeId, setActiveId] = useState<number | null>(null)
+  const [showChat, setShowChat] = useState(false)
+  const [search, setSearch]     = useState('')
 
-  const { data: connections = [] } = useQuery<PConn[]>({
+  const { data: connections = [], isLoading } = useQuery<Conn[]>({
     queryKey: ['partner-connections'],
-    queryFn:  () => partnerApi.connections().then((r) => r.data),
+    queryFn: () => partnerApi.connections().then(r => r.data),
     refetchInterval: 30_000,
   })
 
-  const activeConn = connections.find((c) => c.id === activeId) ?? null
-  const openChat   = (id: number) => { setActiveId(id); setShowChat(true) }
+  const filtered   = connections.filter(c => c.partner.name.toLowerCase().includes(search.toLowerCase()))
+  const activeConn = connections.find(c => c.id === activeId) ?? null
+
+  const openChat = (id: number) => { setActiveId(id); setShowChat(true) }
 
   return (
-    <div className="flex gap-0 h-[600px] rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm">
+    <div className="flex rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 shadow-sm"
+      style={{ height: 'calc(100vh - 270px)', minHeight: '480px' }}>
 
-      {/* ── Sidebar ── */}
+      {/* ─── Sidebar (contact list) ─── */}
       <aside className={cn(
-        'w-full md:w-72 shrink-0 flex flex-col border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900',
+        'w-full md:w-72 lg:w-80 shrink-0 flex flex-col',
+        'border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900',
         showChat ? 'hidden md:flex' : 'flex',
       )}>
-        {/* Gradient header */}
-        <div className="px-5 py-4 shrink-0" style={{ background: `linear-gradient(135deg, ${TEAL}, #2D9E95)` }}>
-          <p className="text-white font-bold text-base">Study Chats</p>
-          <p className="text-white/70 text-xs mt-0.5">
-            {connections.length} study partner{connections.length !== 1 ? 's' : ''}
+        {/* Sidebar header */}
+        <div className="px-4 py-3.5 shrink-0"
+          style={{ background: `linear-gradient(135deg, ${TEAL}, ${TEAL2})` }}>
+          <p className="text-white font-bold">Study Chats</p>
+          <p className="text-white/65 text-[11px] mt-0.5">
+            {connections.length} partner{connections.length !== 1 ? 's' : ''}
           </p>
         </div>
 
+        {/* Search */}
+        <div className="px-3 py-2.5 border-b border-gray-100 dark:border-gray-800 shrink-0">
+          <div className="relative">
+            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search partners…"
+              className="w-full pl-8 pr-3 py-2 text-xs bg-gray-100 dark:bg-gray-800 rounded-xl border-none focus:outline-none focus:ring-2 focus:ring-[#1D6660]/20 text-gray-700 dark:text-gray-200 placeholder-gray-400"
+            />
+          </div>
+        </div>
+
         {/* List */}
-        <div className="flex-1 overflow-y-auto divide-y divide-gray-50 dark:divide-gray-800">
-          {connections.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 px-4 gap-2">
-              <MessageSquare size={28} className="text-gray-300" />
-              <p className="text-xs text-gray-400 text-center">Accept a connection request to start chatting</p>
+        <div className="flex-1 overflow-y-auto">
+          {isLoading ? (
+            <div className="p-3 space-y-2">
+              {[...Array(4)].map((_, i) => <div key={i} className="h-16 skeleton rounded-xl" />)}
             </div>
-          ) : connections.map((c) => {
-            const p = c.partner
-            const isActive = c.id === activeId
-            return (
-              <button key={c.id} onClick={() => openChat(c.id)}
-                className={cn(
-                  'w-full text-left flex items-center gap-3 px-4 py-3.5 transition-all duration-150 relative',
-                  isActive
-                    ? 'bg-teal-50 dark:bg-teal-900/20'
-                    : 'hover:bg-gray-50 dark:hover:bg-gray-800/60',
-                )}>
-                {/* Active indicator strip */}
-                {isActive && (
-                  <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full" style={{ background: TEAL }} />
-                )}
-
-                {/* Avatar + online dot */}
-                <div className="relative shrink-0">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm"
-                    style={{ background: `linear-gradient(135deg, ${TEAL}, #2D9E95)` }}>
-                    {p.name[0].toUpperCase()}
-                  </div>
-                  <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 rounded-full border-2 border-white dark:border-gray-900" />
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <p className={cn('text-sm font-semibold truncate', isActive ? 'text-[#1D6660] dark:text-teal-400' : 'text-gray-800 dark:text-gray-100')}>
-                    {p.name}
-                  </p>
-                  <p className="text-[11px] text-gray-400 truncate mt-0.5">
-                    {p.shared_subjects.length > 0
-                      ? `${p.shared_subjects[0]}${p.shared_subjects.length > 1 ? ` +${p.shared_subjects.length - 1} subjects` : ''}`
-                      : p.city ?? 'Study Partner'}
-                  </p>
-                </div>
-
-                {isActive && (
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: TEAL }} />
-                )}
-              </button>
-            )
-          })}
+          ) : filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-14 px-4 gap-2">
+              <MessageSquare size={24} className="text-gray-300" />
+              <p className="text-xs text-gray-400 text-center">
+                {search ? 'No match found' : 'Accept a connection request to start chatting'}
+              </p>
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-50 dark:divide-gray-800">
+              {filtered.map(c => {
+                const p = c.partner
+                const isActive = c.id === activeId
+                return (
+                  <button key={c.id} onClick={() => openChat(c.id)}
+                    className={cn(
+                      'w-full text-left flex items-center gap-3 px-4 py-3.5 relative transition-all duration-150',
+                      isActive ? 'bg-teal-50 dark:bg-teal-950/40' : 'hover:bg-gray-50 dark:hover:bg-gray-800/60',
+                    )}>
+                    {isActive && (
+                      <span className="absolute left-0 top-4 bottom-4 w-[3px] rounded-r-full"
+                        style={{ background: TEAL }} />
+                    )}
+                    <div className="relative shrink-0">
+                      <Avatar name={p.name} />
+                      <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 rounded-full border-2 border-white dark:border-gray-900" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className={cn('text-sm font-semibold truncate',
+                        isActive ? 'text-[#1D6660] dark:text-teal-400' : 'text-gray-800 dark:text-gray-100')}>
+                        {p.name}
+                      </p>
+                      <p className="text-[11px] text-gray-400 truncate mt-0.5">
+                        {p.shared_subjects.length > 0
+                          ? p.shared_subjects.slice(0, 2).join(' · ') + (p.shared_subjects.length > 2 ? ` +${p.shared_subjects.length - 2}` : '')
+                          : (p.city ?? p.exam_type ?? 'Study Partner')}
+                      </p>
+                    </div>
+                    {isActive && <span className="w-2 h-2 rounded-full shrink-0" style={{ background: TEAL }} />}
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
       </aside>
 
-      {/* ── Chat area ── */}
-      <div className={cn('flex-1 flex flex-col min-w-0 bg-white dark:bg-gray-900', showChat ? 'flex' : 'hidden md:flex')}>
+      {/* ─── Chat panel ─── */}
+      <div className={cn('flex-1 flex flex-col min-w-0 min-h-0', showChat ? 'flex' : 'hidden md:flex')}>
         {/* Mobile back */}
         {showChat && (
-          <div className="md:hidden px-4 pt-3 pb-0">
+          <div className="md:hidden shrink-0 px-4 py-2.5 border-b border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
             <button onClick={() => setShowChat(false)}
               className="flex items-center gap-1.5 text-sm font-semibold"
               style={{ color: TEAL }}>
@@ -650,21 +503,29 @@ function MessagesTab() {
         )}
 
         {activeConn ? (
-          <PartnerChatPanel conn={activeConn} />
+          <ChatWindow conn={activeConn} />
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8"
-            style={{ background: '#f5f7f6' }}>
-            <div className="w-20 h-20 rounded-full flex items-center justify-center shadow-sm"
-              style={{ background: `${TEAL}18` }}>
-              <MessageCircle size={36} style={{ color: TEAL }} />
+          <div className="flex-1 flex flex-col items-center justify-center gap-5 p-8"
+            style={{
+              background: '#e8ede8',
+              backgroundImage: 'radial-gradient(rgba(29,102,96,0.05) 1px, transparent 1px)',
+              backgroundSize: '18px 18px',
+            }}>
+            <div className="w-24 h-24 rounded-full flex items-center justify-center shadow-sm"
+              style={{ background: 'rgba(29,102,96,0.12)' }}>
+              <MessageCircle size={40} style={{ color: TEAL }} />
             </div>
             <div className="text-center">
-              <p className="font-bold text-gray-700 dark:text-gray-200 text-base">Select a conversation</p>
-              <p className="text-sm text-gray-400 mt-1">Choose a study partner from the left to start chatting</p>
+              <p className="font-bold text-gray-700 dark:text-gray-200 text-base">Your study chats</p>
+              <p className="text-sm text-gray-400 mt-1 max-w-xs">
+                Select a partner from the left to continue your conversation
+              </p>
             </div>
-            <div className="flex gap-2 mt-2">
-              {['✨ Real-time chat', '📚 Study together', '💡 Share tips'].map(t => (
-                <span key={t} className="text-[11px] px-3 py-1 rounded-full bg-white border border-gray-200 text-gray-500 shadow-sm">{t}</span>
+            <div className="flex flex-wrap justify-center gap-2">
+              {['✨ Real-time messaging', '📚 Study together', '💡 Share tips'].map(t => (
+                <span key={t} className="text-[11px] px-3 py-1.5 rounded-full bg-white border border-gray-200 text-gray-500 shadow-xs">
+                  {t}
+                </span>
               ))}
             </div>
           </div>
@@ -674,35 +535,436 @@ function MessagesTab() {
   )
 }
 
-/* ── Main page ──────────────────────────────────────────────── */
+/* ════════════════════════════════════════════════════════
+   DISCOVER TAB
+   ════════════════════════════════════════════════════════ */
+interface PartnerCardData extends Omit<PartnerInfo, 'shared_count'> { shared_count: number }
+
+function ConnectModal({ user, onClose, onSend }: {
+  user: PartnerCardData; onClose: () => void; onSend: (icebreaker: string) => void
+}) {
+  const [ice, setIce] = useState('')
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+      onClick={onClose}>
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-sm p-5 animate-fade-in"
+        onClick={e => e.stopPropagation()}>
+        <div className="flex items-start gap-3 mb-4">
+          <Avatar name={user.name} size="md" />
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-gray-900 dark:text-white">{user.name}</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {[user.city, user.exam_type].filter(Boolean).join(' · ') || 'CSS Aspirant'}
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400">
+            <X size={15} />
+          </button>
+        </div>
+
+        {user.shared_subjects.length > 0 && (
+          <div className="mb-4 p-3 rounded-xl" style={{ background: 'rgba(29,102,96,0.07)' }}>
+            <p className="text-[10px] font-bold uppercase tracking-wide mb-1.5" style={{ color: TEAL }}>
+              Common Optionals
+            </p>
+            <div className="flex flex-wrap gap-1">
+              {user.shared_subjects.map(s => (
+                <span key={s} className="text-[11px] px-2.5 py-0.5 rounded-full text-white font-semibold"
+                  style={{ background: TEAL }}>{s}</span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-1.5">
+          Icebreaker message <span className="text-gray-400 font-normal">(optional)</span>
+        </label>
+        <textarea
+          value={ice}
+          onChange={e => setIce(e.target.value)}
+          placeholder={`Hi ${user.name.split(' ')[0]}, I'm also preparing for CSS with similar optionals — let's study together!`}
+          rows={3}
+          className="input w-full resize-none text-sm"
+        />
+        <div className="flex gap-2 mt-4">
+          <button onClick={onClose} className="btn-outline flex-1 text-sm">Cancel</button>
+          <button onClick={() => onSend(ice.trim())}
+            className="flex-1 py-2 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 transition-opacity hover:opacity-90"
+            style={{ background: `linear-gradient(135deg, ${TEAL}, ${TEAL2})` }}>
+            <UserPlus size={14} /> Send Request
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function PartnerCard({ user, onConnect }: {
+  user: PartnerCardData; onConnect: (id: number, ice: string) => void
+}) {
+  const [showModal, setShowModal] = useState(false)
+
+  return (
+    <>
+      <div className="card p-5 flex flex-col gap-3.5 hover:shadow-md transition-all duration-200">
+        <div className="flex items-start gap-3">
+          <Avatar name={user.name} size="md" />
+          <div className="flex-1 min-w-0">
+            <p className="font-bold text-gray-900 dark:text-white text-sm truncate">{user.name}</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {user.city || 'Location unknown'} · {user.exam_type || 'CSS'}
+            </p>
+            {user.prep_level && (
+              <span className="badge-primary mt-1.5 inline-block text-[10px]">{user.prep_level}</span>
+            )}
+          </div>
+          {user.shared_count > 0 && (
+            <div className="text-right shrink-0">
+              <span className="text-2xl font-black leading-none" style={{ color: TEAL }}>
+                {user.shared_count}
+              </span>
+              <p className="text-[10px] text-gray-400 leading-tight mt-0.5">shared<br/>subs</p>
+            </div>
+          )}
+        </div>
+
+        {user.shared_subjects.length > 0 && (
+          <div className="rounded-xl px-3 py-2.5" style={{ background: 'rgba(29,102,96,0.07)' }}>
+            <p className="text-[10px] font-bold uppercase tracking-wide mb-1.5" style={{ color: TEAL }}>
+              Common Optionals
+            </p>
+            <div className="flex flex-wrap gap-1">
+              {user.shared_subjects.map(s => (
+                <span key={s} className="text-[10px] px-2 py-0.5 rounded-full text-white font-semibold"
+                  style={{ background: TEAL }}>{s}</span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {user.optional_subjects.length > 0 && (
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400 mb-1.5">
+              Their Optionals
+            </p>
+            <div className="flex flex-wrap gap-1">
+              {user.optional_subjects.slice(0, 5).map(s => (
+                <span key={s} className="text-[10px] px-2 py-0.5 rounded-full font-medium"
+                  style={user.shared_subjects.includes(s)
+                    ? { background: TEAL, color: 'white' }
+                    : { background: 'var(--color-gray-100, #f3f4f6)', color: '#6b7280' }}>
+                  {s}
+                </span>
+              ))}
+              {user.optional_subjects.length > 5 && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-400">
+                  +{user.optional_subjects.length - 5}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        <button onClick={() => setShowModal(true)}
+          className="w-full py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 border-2 transition-all duration-150"
+          style={{ borderColor: TEAL, color: TEAL }}
+          onMouseEnter={e => { e.currentTarget.style.background = TEAL; e.currentTarget.style.color = 'white' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = TEAL }}>
+          <UserPlus size={14} /> Connect
+        </button>
+      </div>
+
+      {showModal && (
+        <ConnectModal
+          user={user}
+          onClose={() => setShowModal(false)}
+          onSend={ice => { setShowModal(false); onConnect(user.id, ice) }}
+        />
+      )}
+    </>
+  )
+}
+
+function DiscoverTab() {
+  const qc             = useQueryClient()
+  const currentUser    = useAuthStore(s => s.user)
+  const [filter, setFilter] = useState('')
+  const [page, setPage]     = useState(1)
+
+  const { data: groups = [] } = useQuery<{ subject: string; member_count: number }[]>({
+    queryKey: ['partner-groups'],
+    queryFn: () => apiClient.get('/api/partner/groups').then(r => r.data),
+    staleTime: 5 * 60_000,
+  })
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['partner-discover', filter, page],
+    queryFn: () => apiClient.get('/api/partner/discover', {
+      params: { optional_subject: filter || undefined, page, per_page: 12 },
+    }).then(r => r.data),
+    keepPreviousData: true,
+  } as any)
+
+  const items: PartnerCardData[] = (data as any)?.items ?? []
+  const totalPages               = (data as any)?.pages ?? 1
+  const myOptionals              = currentUser?.optional_subjects ?? []
+
+  const connect = async (id: number, icebreaker: string) => {
+    try {
+      await partnerApi.sendRequest(id, icebreaker || undefined)
+      qc.invalidateQueries({ queryKey: ['partner-discover'] })
+    } catch {}
+  }
+
+  return (
+    <div className="space-y-4">
+      {myOptionals.length === 0 && (
+        <div className="flex gap-3 p-4 rounded-2xl border"
+          style={{ background: 'rgba(245,158,11,0.06)', borderColor: 'rgba(245,158,11,0.3)' }}>
+          <span className="text-xl shrink-0">💡</span>
+          <p className="text-sm" style={{ color: '#92400e' }}>
+            <strong>Add your optional subjects</strong> from the profile menu (top-right) to get matched with aspirants who share the same optionals — they'll appear sorted by most in common.
+          </p>
+        </div>
+      )}
+
+      <div className="flex flex-col sm:flex-row gap-3">
+        <select value={filter} onChange={e => { setFilter(e.target.value); setPage(1) }}
+          className="select w-full sm:max-w-xs">
+          <option value="">All optional subjects</option>
+          {groups.map(g => (
+            <option key={g.subject} value={g.subject}>
+              {g.subject} ({g.member_count}){myOptionals.includes(g.subject) ? ' ★' : ''}
+            </option>
+          ))}
+        </select>
+        {filter && (
+          <button onClick={() => { setFilter(''); setPage(1) }}
+            className="btn-ghost btn-sm text-gray-400 gap-1.5">
+            <X size={13} /> Clear
+          </button>
+        )}
+      </div>
+
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, i) => <div key={i} className="h-64 skeleton rounded-2xl" />)}
+        </div>
+      ) : items.length === 0 ? (
+        <div className="empty-state py-16">
+          <div className="empty-icon"><Compass size={28} /></div>
+          <p className="empty-title">No aspirants found</p>
+          <p className="empty-sub">
+            {filter ? 'Try a different subject or clear the filter' : 'More aspirants are joining daily — check back soon'}
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {items.map(u => <PartnerCard key={u.id} user={u} onConnect={connect} />)}
+          </div>
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-2">
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                className="btn-outline btn-sm gap-1 disabled:opacity-40">
+                <ArrowLeft size={13} /> Prev
+              </button>
+              <span className="px-3 py-1.5 text-xs font-bold rounded-xl"
+                style={{ background: 'rgba(29,102,96,0.10)', color: TEAL }}>
+                {page} / {totalPages}
+              </span>
+              <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                className="btn-outline btn-sm gap-1 disabled:opacity-40">
+                Next <ArrowLeft size={13} className="rotate-180" />
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+/* ════════════════════════════════════════════════════════
+   REQUESTS TAB
+   ════════════════════════════════════════════════════════ */
+function RequestsTab() {
+  const qc = useQueryClient()
+
+  const { data: incoming = [] } = useQuery({
+    queryKey: ['partner-incoming'],
+    queryFn: () => partnerApi.incoming().then(r => r.data),
+    refetchInterval: 30_000,
+  })
+  const { data: sent = [] } = useQuery({
+    queryKey: ['partner-sent'],
+    queryFn: () => partnerApi.sent().then(r => r.data),
+    refetchInterval: 60_000,
+  })
+
+  const accept = async (id: number) => { await partnerApi.accept(id); qc.invalidateQueries() }
+  const reject = async (id: number) => { await partnerApi.reject(id); qc.invalidateQueries() }
+  const cancel = async (id: number) => { await partnerApi.cancel(id); qc.invalidateQueries({ queryKey: ['partner-sent'] }) }
+
+  return (
+    <div className="space-y-8 max-w-2xl">
+
+      {/* Incoming */}
+      <section>
+        <div className="flex items-center gap-2 mb-3">
+          <Inbox size={16} className="text-amber-500" />
+          <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200">Incoming Requests</h3>
+          {(incoming as any[]).length > 0 && (
+            <span className="w-5 h-5 rounded-full text-white text-[10px] font-black flex items-center justify-center"
+              style={{ background: '#f59e0b' }}>
+              {(incoming as any[]).length}
+            </span>
+          )}
+        </div>
+        {(incoming as any[]).length === 0 ? (
+          <div className="card p-5 text-center text-sm text-gray-400">No pending requests</div>
+        ) : (
+          <div className="space-y-2">
+            {(incoming as any[]).map(r => (
+              <div key={r.id} className="card p-4">
+                <div className="flex items-start gap-3">
+                  <Avatar name={r.requester.name} />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm text-gray-900 dark:text-white">{r.requester.name}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {[r.requester.city, r.requester.exam_type].filter(Boolean).join(' · ') || 'CSS Aspirant'}
+                    </p>
+                    {r.icebreaker && (
+                      <p className="text-xs text-gray-500 dark:text-gray-400 italic mt-2 bg-gray-50 dark:bg-gray-800/60 rounded-xl px-3 py-2">
+                        "{r.icebreaker}"
+                      </p>
+                    )}
+                    {r.requester.shared_subjects?.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        <span className="text-[10px] text-gray-400 self-center">Shared:</span>
+                        {r.requester.shared_subjects.map((s: string) => (
+                          <span key={s} className="text-[10px] px-2 py-0.5 rounded-full text-white font-semibold"
+                            style={{ background: TEAL }}>{s}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-2 shrink-0">
+                    <button onClick={() => accept(r.id)}
+                      className="px-4 py-1.5 rounded-xl text-xs font-bold text-white hover:opacity-90 transition-opacity"
+                      style={{ background: `linear-gradient(135deg, ${TEAL}, ${TEAL2})` }}>
+                      Accept
+                    </button>
+                    <button onClick={() => reject(r.id)}
+                      className="px-4 py-1.5 rounded-xl text-xs font-bold text-red-600 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 transition-colors">
+                      Decline
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Sent */}
+      <section>
+        <div className="flex items-center gap-2 mb-3">
+          <Send size={15} className="text-sky-500" />
+          <h3 className="text-sm font-bold text-gray-700 dark:text-gray-200">Sent Requests</h3>
+          {(sent as any[]).length > 0 && (
+            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 dark:bg-sky-900/30 text-sky-600">
+              {(sent as any[]).length}
+            </span>
+          )}
+        </div>
+        {(sent as any[]).length === 0 ? (
+          <div className="card p-5 text-center text-sm text-gray-400">No sent requests</div>
+        ) : (
+          <div className="space-y-2">
+            {(sent as any[]).map(r => (
+              <div key={r.id} className="card p-4 flex items-center gap-3">
+                <Avatar name={r.receiver.name} />
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-sm text-gray-900 dark:text-white truncate">{r.receiver.name}</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {[r.receiver.city, r.receiver.exam_type].filter(Boolean).join(' · ') || 'CSS Aspirant'}
+                  </p>
+                  {r.icebreaker && (
+                    <p className="text-xs text-gray-400 italic mt-0.5 truncate">"{r.icebreaker}"</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[11px] font-bold px-2.5 py-1 rounded-full"
+                    style={{ background: 'rgba(245,158,11,0.12)', color: '#b45309' }}>
+                    Pending
+                  </span>
+                  <button onClick={() => cancel(r.id)}
+                    className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 text-gray-400 hover:text-red-500 transition-colors"
+                    title="Cancel request">
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+    </div>
+  )
+}
+
+/* ════════════════════════════════════════════════════════
+   MAIN PAGE
+   ════════════════════════════════════════════════════════ */
 function StudyPartnerContent() {
   const [tab, setTab] = useState<Tab>('discover')
 
-  const tabs = [
-    { id: 'discover' as const, label: 'Discover',  icon: '🔍' },
-    { id: 'requests' as const, label: 'Requests',  icon: '📩' },
-    { id: 'messages' as const, label: 'Messages',  icon: '💬' },
+  const { data: incoming = [] } = useQuery({
+    queryKey: ['partner-incoming'],
+    queryFn: () => partnerApi.incoming().then(r => r.data),
+    refetchInterval: 60_000,
+  })
+  const badge = (incoming as any[]).length
+
+  const TABS: { id: Tab; label: string; emoji: string }[] = [
+    { id: 'discover',  label: 'Discover',  emoji: '🔍' },
+    { id: 'requests',  label: 'Requests',  emoji: '📩' },
+    { id: 'chats',     label: 'Chats',     emoji: '💬' },
   ]
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="page-header">
-        <h1 className="page-title flex items-center gap-2"><Users size={26} className="text-green-500" /> Study Partner</h1>
-        <p className="page-sub">Find aspirants who share your optional subjects and connect with them</p>
-      </div>
+      <PageHeader
+        icon={<Users size={22} className="text-white" />}
+        title="Study Partner"
+        subtitle="Find aspirants with matching optionals and chat in real time"
+      />
 
-      <div className="tabs w-fit">
-        {tabs.map(({ id, label, icon }) => (
+      {/* Tab bar */}
+      <div className="flex gap-1 p-1 rounded-2xl w-fit bg-gray-100 dark:bg-gray-800">
+        {TABS.map(({ id, label, emoji }) => (
           <button key={id} onClick={() => setTab(id)}
-            className={tab === id ? 'tab-active' : 'tab'}>
-            {icon} {label}
+            className={cn(
+              'relative flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200',
+              tab === id
+                ? 'bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm'
+                : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200',
+            )}>
+            <span>{emoji}</span> {label}
+            {id === 'requests' && badge > 0 && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-white text-[9px] font-black flex items-center justify-center"
+                style={{ background: '#f97316' }}>
+                {badge > 9 ? '9+' : badge}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
-      {tab === 'discover' && <DiscoverTab />}
-      {tab === 'requests' && <RequestsTab />}
-      {tab === 'messages' && <MessagesTab />}
+      {tab === 'discover'  && <DiscoverTab />}
+      {tab === 'requests'  && <RequestsTab />}
+      {tab === 'chats'     && <ChatsTab />}
     </div>
   )
 }

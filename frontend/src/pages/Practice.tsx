@@ -4,6 +4,7 @@ import { practiceApi } from '@/api/practice'
 import { useDebounce } from '@/hooks/useDebounce'
 import type { Mcq, QuizSubmitResponse, SubjectCount } from '@/types'
 import { CheckCircle, XCircle, Download, RotateCcw, BookOpen, Search, Play, Trophy } from 'lucide-react'
+import { PageHeader } from '@/components/common/PageHeader'
 import { cn } from '@/lib/utils'
 
 /* ── Quiz ─────────────────────────────────────────────────── */
@@ -82,12 +83,12 @@ function QuizTab() {
                 </span>
               : <span className="text-xs text-gray-400">Select a subject to begin</span>}
         </div>
-        <div className={cn('flex gap-3 overflow-x-auto pb-2 -mx-1 px-1', shake && 'animate-shake')}>
+        <div className={cn('grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3', shake && 'animate-shake')}>
 
           {/* Mix card — always first */}
           <button onClick={() => setSubject('mix')}
             className={cn(
-              'shrink-0 w-36 rounded-2xl border-2 p-3.5 text-left transition-all duration-150',
+              'w-full rounded-2xl border-2 p-3.5 text-left transition-all duration-150',
               subject === 'mix'
                 ? 'border-primary bg-primary text-white shadow-glow-sm'
                 : 'border-dashed border-primary/40 bg-primary/5 dark:bg-primary/10 hover:border-primary hover:shadow-card',
@@ -106,7 +107,7 @@ function QuizTab() {
             return (
               <button key={s.subject} onClick={() => setSubject(s.subject)}
                 className={cn(
-                  'shrink-0 w-36 rounded-2xl border-2 p-3.5 text-left transition-all duration-150',
+                  'w-full rounded-2xl border-2 p-3.5 text-left transition-all duration-150',
                   active
                     ? 'border-primary bg-primary text-white shadow-glow-sm'
                     : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:border-primary/50 hover:shadow-card',
@@ -362,10 +363,11 @@ export function Practice() {
 
   return (
     <div className="space-y-6">
-      <div className="page-header">
-        <h1 className="page-title flex items-center gap-2"><BookOpen size={26} className="text-primary" /> Practice</h1>
-        <p className="page-sub">MCQ quiz mode or browse the full question bank</p>
-      </div>
+      <PageHeader
+        icon={<BookOpen size={22} className="text-white" />}
+        title="Practice"
+        subtitle="MCQ quiz mode or browse the full question bank"
+      />
 
       <div className="tabs w-fit">
         <button onClick={() => setTab('quiz')} className={tab === 'quiz' ? 'tab-active' : 'tab'}>

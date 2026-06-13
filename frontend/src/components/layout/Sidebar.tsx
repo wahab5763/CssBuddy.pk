@@ -1,8 +1,8 @@
 import { NavLink } from 'react-router-dom'
 import { useAuthStore } from '@/store/authStore'
 import {
-  Home, BookOpen, FileText, Newspaper, Star, Users, PenLine,
-  ShieldCheck, Calendar, BookMarked, ChevronRight,
+  Home, BookOpen, FileText, Newspaper, Users,
+  ShieldCheck, Calendar, ShoppingBag, ChevronRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -10,12 +10,10 @@ const NAV = [
   { to: '/dashboard',   label: 'Home',             icon: Home,        color: 'text-teal-600'  },
   { to: '/study-plan',  label: 'Study Plan',        icon: Calendar,    color: 'text-blue-500'  },
   { to: '/practice',    label: 'Practice',          icon: BookOpen,    color: 'text-teal-500'  },
-  { to: '/books',       label: 'Books Market',      icon: BookMarked,  color: 'text-orange-500'},
+  { to: '/shop',        label: 'Shop',              icon: ShoppingBag, color: 'text-orange-500'},
   { to: '/past-papers', label: 'Past Papers',       icon: FileText,    color: 'text-red-500'   },
   { to: '/news',        label: 'News & Affairs',    icon: Newspaper,   color: 'text-sky-500'   },
-  { to: '/premium',     label: 'Premium Notes',     icon: Star,        color: 'text-yellow-500'},
   { to: '/partner',     label: 'Study Partner',     icon: Users,       color: 'text-teal-400'  },
-  { to: '/essay',       label: 'Essay Writing',     icon: PenLine,     color: 'text-pink-500'  },
 ]
 
 interface SidebarProps { className?: string; onNavClick?: () => void }

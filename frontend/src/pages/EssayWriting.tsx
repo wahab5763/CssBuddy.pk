@@ -4,6 +4,7 @@ import { essayApi } from '@/api/essay'
 import { ProtectedRoute } from '@/components/common/ProtectedRoute'
 import type { Essay, EssayTopic } from '@/types'
 import { PenLine, Upload, FileText, CheckCircle, Star, ExternalLink } from 'lucide-react'
+import { PageHeader } from '@/components/common/PageHeader'
 import { formatDate } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 
@@ -189,10 +190,11 @@ function EssayContent() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div className="page-header">
-        <h1 className="page-title flex items-center gap-2"><PenLine size={26} className="text-pink-500" /> Essay Writing</h1>
-        <p className="page-sub">Submit your essays for professional feedback and scoring</p>
-      </div>
+      <PageHeader
+        icon={<PenLine size={22} className="text-white" />}
+        title="Essay Writing"
+        subtitle="Submit your essays for professional feedback and scoring"
+      />
       <div className="tabs w-fit">
         <button onClick={() => setTab('submit')} className={tab === 'submit' ? 'tab-active' : 'tab'}>
           ✍️ Submit Essay
